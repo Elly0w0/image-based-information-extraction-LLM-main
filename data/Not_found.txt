@@ -1,0 +1,37 @@
+This figure illustrates the proposed mechanisms by which SARS-CoV-2 infection might lead to neurodegeneration, highlighting an intricate interplay between systemic infection, immune response, and neural damage.
+
+### Main Elements:
+1. **SARS-CoV-2 Infection**:
+   - Shown on the leftmost side, it begins with the infection leading to an immune response, depicted with the illustration of the virus and lungs.
+
+2. **Peripheral Nervous System & BBB (Blood-Brain Barrier)**:
+   - **Cytokine Release and Immune Activation**: Features cytokines such as IL-1β, IL-6, TNF-α, and IFN-γ released in response to infection. These cytokines play a critical role in inflammation and immune system activation.
+   - **CD4+ T Cells Activation**: These immune cells are activated and infiltrate the central nervous system (CNS).
+   - **BBB Dysfunction**: Indicated by breaches or abnormalities in the BBB, allowing infiltrating T cells to pass into the CNS.
+
+3. **Central Nervous System (CNS)**:
+   - Inside the CNS, the cascade has several critical components:
+     - **Elevation in Oxidative Stress**.
+     - **Accumulation of Misfolded Proteins**: Including β-amyloid (Aβ) and hyperphosphorylated tau, agents commonly associated with neurodegenerative disorders.
+     - **Chemokines and Apoptotic Cell Death**: Molecular signals that exacerbate inflammation and cellular death.
+
+4. **Activation of Microglia and Astrocytes**:
+   - **Activated Microglia**: The CNS's resident immune cells become activated and release more cytokines (IL-1β, IL-6, TNF-α), perpetuating the inflammatory cycle.
+   - **Astrocytes**: Their activation alters neuronal function and might stimulate the release of harmful substances like glutamate that exacerbates neural damage.
+
+5. **Inflammatory Cytokines & Neuronal Cell Death**:
+   - Continuous release of these molecules intensifies the cycle, leading to widespread neuronal cell death.
+
+6. **Neurodegeneration**:
+   - Illustrated by a brain image with noticeable damage, indicating the end result of the described processes.
+
+### Significant Trends, Patterns, and Data Points:
+- **Cascade of Events**: Starting from SARS-CoV-2 infection, the progression can be seen as a series of escalating immune responses leading to BBB dysfunction, and CNS infiltration.
+- **Protein Misfolding and Oxidative Stress**: Two primary pathways linked with many neurodegenerative diseases are highlighted.
+- **Cytokine Storm**: Continuous cycles of cytokine release and microglial activation indicate a self-perpetuating inflammatory response.
+- **Neuronal Damage**: The significant role of cellular elements (like astrocytes and glutamate) in contributing to neurons' death and, by extension, neurodegeneration.
+
+### Relevance to Covid-19 and Neurodegeneration:
+- **Systemic to Central**: The transition from peripheral infection to central nervous system implications draws a clear pathway from SARS-CoV-2 to potential brain damage.
+- **Inflammatory Links**: Highlights the importance of inflammation and immune response not just in systemic Covid-19 symptoms but as a potential cause for long-term neurodegenerative effects.
+- **Clinical Implications**: Explains some observed clinical phenomena such as 'brain fog' or cognitive impairments post-Covid-19, providing a mechanistic view that could guide future therapies and interventions.
