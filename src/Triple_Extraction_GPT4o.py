@@ -150,7 +150,7 @@ def triples_extraction_from_urls(path_URLs, API_key):
     parsed_data = []
 
     # Loop through each URL in the dataframe
-    for idx, row in (relevance_GPT.head(5)).iterrows(): 
+    for idx, row in relevance_GPT.iterrows(): 
         try:
             url = row["URL"]
 
