@@ -1,6 +1,4 @@
 from openai import OpenAI
-import os
-import requests
 import pandas as pd
 
 
@@ -125,8 +123,8 @@ def gpt_extract(client, url):
       }
     ],
     max_tokens=2000,
-#    temperature=0.0,    #parameters    
-#    top_p=0.0   #parameters
+    temperature=0.0,    #parameters    
+    top_p=0.0   #parameters
   )
     content = response.choices[0].message.content
     return content
@@ -177,8 +175,8 @@ def triples_extraction_from_urls(path_URLs, API_key):
     parsed_df = pd.DataFrame(parsed_data, columns=['URL', 'Pathophysiological Process', 'Subject', 'Predicate', 'Object'])
 
     # Save to CSV and Excel
-    parsed_df.to_csv('Triples_Final.csv', index=False)
-    parsed_df.to_excel('Triples_Final.xlsx', index=False)
+    parsed_df.to_csv('Triples_Final_All.csv', index=False)
+    parsed_df.to_excel('Triples_Final_All.xlsx', index=False)
     print('Triples_Final file is successfully saved as CSV and Excel.')
 
 
