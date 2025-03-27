@@ -1,51 +1,72 @@
-# Image-based biomedical information extraction
-## Overview
+# Identifying Mechanistic Links Between COVID-19 and Neurodegenerative Diseases
 
-This project aims to extract entities and triples from figures in biomedical publications. By leveraging advanced language models (LLMs) like GPT-4, we seek to develop tools and methods that can analyze images within scientific papers and extract meaningful biomedical information, which can then be used for further research and data analysis.
+**Project Goal:**  
+This research project aims to uncover mechanistic connections between **COVID-19** and **neurodegenerative diseases** by extracting structured information from **biomedical figures and graphical abstracts** using advanced natural language processing (NLP) and image analysis techniques.
 
-## Table of Contents
+---
 
-- [Project Structure](#project-structure)
-- [Installation](#installation)
-- [Usage](#usage)
-- [Data](#data)
-- [Models](#models)
-- [Contributing](#contributing)
-- [License](#license)
-- [Contact](#contact)
+## Project Structure (Scripts Overview)
 
-## Project Structure
+| Script | Description |
+|--------|-------------|
+| `Gold_Standard_Comparison.py` | *TBD* |
+| `Hyperparameters_and_Prompt_Assessment.py` | *TBD* |
+| `Image_Enrichment_Analysis.py` | *TBD* |
+| `Pathophysiological_Pr_Classification_MeSH.py` | See below ↓ |
+| `Triple_Extraction_GPT4o.py` | *TBD* |
+| `URLs_Relevance_Check.py` | *TBD* |
 
-```plaintext
-image-biomedical-info-extraction/
-│
-├── README.md                        # Project overview and instructions
-├── LICENSE                          # License information
-├── requirements.txt                 # Python dependencies
-├── src/                             # Core source code for the project
-│   ├── data_processing/             # Scripts for data extraction and preprocessing
-│   ├── model/                       # Model training and inference scripts
-│   ├── utils/                       # Utility functions and helper scripts
-│   └── main.py                      # Main script to run the project
-│
-├── data/                            # Data directory
-│   ├── raw/                         # Raw data (images and publication figures)
-│   ├── processed/                   # Processed data ready for modeling
-│   └── samples/                     # Sample images for testing
-│
-├── output/                          # Output directory
-│   ├── results/                     # Extracted entities and triples
-│   └── logs/                        # Logs from model runs and other processes
-│
-├── notebooks/                       # Jupyter notebooks for experiments and analysis
-│   ├── exploration.ipynb            # Data exploration and initial analysis
-│   ├── model_training.ipynb         # Model training and evaluation
-│   └── results_analysis.ipynb       # Analysis of model results
-│
-├── scripts/                         # Standalone scripts for specific tasks
-│   ├── download_data.py             # Script to download data from sources
-│   └── preprocess_images.py         # Script to preprocess images
-│
-└── tests/                           # Unit and integration tests
-    ├── test_data_processing.py      # Tests for data processing functions
-    └── test_model.py                # Tests for model components
+---
+
+## Pathophysiological Process Classification using BERT + MeSH
+
+**Script:** `Pathophysiological_Pr_Classification_MeSH.py`  
+This module classifies biomedical pathophysiological processes into predefined mechanistic categories using **BERT-based semantic similarity** with **ontology-derived keywords** from the MeSH database.
+
+### Categories Used:
+- Viral Entry and Neuroinvasion  
+- Immune and Inflammatory Response  
+- Neurodegenerative Mechanisms  
+- Vascular Effects  
+- Psychological and Neurological Symptoms  
+- Systemic Cross-Organ Effects
+
+### Methodology:
+- Extracts category-specific keywords from the **MeSH ontology**
+- Normalizes all terms and descriptions
+- Embeds both using **Sentence-BERT**
+- Matches based on **cosine similarity**
+
+### Large File Notice
+This script depends on the **MeSH descriptor XML file**:  
+`desc2025.xml` (299MB)  
+This file is not tracked in the repository due to GitHub’s size limits.
+
+[Download it here](https://nlmpubs.nlm.nih.gov/projects/mesh/MESH_FILES/xmlmesh/desc2025.xml)
+
+Place it in the following directory:
+```
+/data/MeSh_data/desc2025.xml
+```
+
+---
+
+## Results & Outputs
+*To be filled after full pipeline integration.*
+
+---
+
+## Requirements
+- Python 3.8+
+- `sentence-transformers`
+- `pandas`
+- `torch`
+
+---
+
+## How to Run
+```bash
+python Pathophysiological_Pr_Classification_MeSH.py
+```
+
+---
