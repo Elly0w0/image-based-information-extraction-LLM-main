@@ -1,3 +1,4 @@
 # Ignore configuration files with sensitive information
 config/config.py
-.env
+.venv/
+
