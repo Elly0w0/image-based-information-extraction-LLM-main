@@ -38,8 +38,8 @@ Description:
 """
 
 # === Load Excel Data ===
-file_Gold_path = "./data/GoldSt_comparison/Triples_CBM_Results_1.xlsx"  # Path to the gold standard triples
-file_Eval_path = "./data/GoldSt_comparison/Triples_Final_CBM_Image_num.xlsx"  # Path to the evaluated/generated triples
+file_Gold_path = "./data/GoldSt_comparison/Triples_CBM_Gold_Standard.xlsx"  # Path to the gold standard triples
+file_Eval_path = "./data/GoldSt_comparison/Triples_GPT_for_comparison.xlsx"  # Path to the evaluated/generated triples
 
 df_Gold = pd.read_excel(file_Gold_path)  
 df_Eval = pd.read_excel(file_Eval_path)  
@@ -111,20 +111,40 @@ def similarity_score_subject_object(df_gold, df_extracted, image_key):
     TP, FP = 0, 0  # True Positives, False Positives
     best_match_scores = []  # Best similarity score per extracted triple
 
-    # For each extracted triple, find the best match in gold standard
+    # # For each extracted triple, find the best match in gold standard
+    # for i, extracted in enumerate(extracted_triples):
+    #     if similarities.shape[1] > 0:
+    #         best_match_idx = np.argmax(similarities[i])  # Get the index of the best match
+    #         best_match_score = similarities[i][best_match_idx]  # Get the similarity score
+    #         best_match_scores.append(best_match_score)
+
+    #         # If similarity is above threshold, count as TP; else FP
+    #         if best_match_score >= SIMILARITY_THRESHOLD:
+    #             TP += 1
+    #         else:
+    #             FP += 1
+    #     else:
+    #         best_match_scores.append(0)
+
+    print(f"\n Image {image_key} - Comparing Extracted vs Gold Standard Triples:")
     for i, extracted in enumerate(extracted_triples):
         if similarities.shape[1] > 0:
-            best_match_idx = np.argmax(similarities[i])  # Get the index of the best match
-            best_match_score = similarities[i][best_match_idx]  # Get the similarity score
+            best_match_idx = np.argmax(similarities[i])
+            best_match_score = similarities[i][best_match_idx]
+            gold_match = gold_triples[best_match_idx]
             best_match_scores.append(best_match_score)
 
-            # If similarity is above threshold, count as TP; else FP
+            match_status = "✅ MATCH" if best_match_score >= SIMILARITY_THRESHOLD else "❌ NO MATCH"
+            print(f"Extracted: \"{extracted}\" ↔ Gold: \"{gold_match}\" | Score: {best_match_score:.4f} → {match_status}")
+
             if best_match_score >= SIMILARITY_THRESHOLD:
                 TP += 1
             else:
                 FP += 1
         else:
             best_match_scores.append(0)
+            print(f"Extracted: \"{extracted}\" ↔ Gold: [NO MATCH FOUND] → Score: 0.000 ❌")
+
 
     # Count false negatives: gold triples that had no match
     FN = max(0, len(gold_triples) - TP)
@@ -156,7 +176,13 @@ def compare_all_images(df_gold, df_extracted):
     common_image_keys = image_keys_gold.intersection(image_keys_eval)
 
     css_scores = []
-    for key in sorted(common_image_keys):  # Iterate through shared images
+
+        # Natural sort based on image number
+    def sort_key(key):
+        return int(key.split('_')[-1])
+
+    for key in sorted(common_image_keys, key=sort_key):
+        css = similarity_score_subject_object(df_Gold, df_Eval, key)
         css = similarity_score_subject_object(df_gold, df_extracted, key)
         if css is not None:
             css_scores.append(css)
