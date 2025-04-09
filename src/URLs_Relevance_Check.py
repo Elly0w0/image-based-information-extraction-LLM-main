@@ -1,43 +1,48 @@
+# URLs_Relevance_Check.py
+
+"""
+Relevance Classification of Image URLs using OpenAI GPT
+Authors: Elizaveta Popova, Negin Babaiha
+Institution: University of Bonn, Fraunhofer SCAI
+Date: 23/10/2024
+
+Description:
+    This script performs automatic relevance assessment of image URLs extracted from biomedical publications.
+    The goal is to identify images that are relevant to the topic of Covid-19 and neurodegeneration using GPT-4o.
+
+    Key functionalities:
+    1. Accessibility check: Ensures the image URLs point to valid, retrievable images.
+    2. Relevance classification: Uses the OpenAI GPT-4o model to classify each image as relevant or irrelevant
+       based on predefined bioinformatics-focused criteria.
+    3. Result export: Saves full classification results and filters out only the relevant images.
+
+Input:
+    - Excel file containing image URLs (column name: 'image_url')
+    - OpenAI API key (as argument or environment variable)
+
+Output:
+    - "Relevance_assignment_GPT_4o.xlsx": All image URLs with classification labels.
+    - "Relevant_URLs_only_GPT_4o.xlsx": Filtered table with only the relevant URLs.
+
+Requirements:
+    - Python libraries: openai, pandas, requests
+    - OpenAI API access (GPT-4o)
+
+Usage:
+    Provide input and output arguments via CLI:
+    python src/URLs_Relevance_Check.py --input data/Enrichment_Search_URLs_0.xlsx --api_key YOUR_API_KEY
+
+    Or (preferred) store your key as an environment variable:
+    export OPENAI_API_KEY=sk-...
+    python src/URLs_Relevance_Check.py --input data/Enrichment_Search_URLs_0.xlsx
+"""
+
 import os
 import requests
 import pandas as pd
 import time
 from openai import OpenAI
 from http.client import RemoteDisconnected
-
-
-"""
-Relevance Check for Bioinformatics Image URLs
-Authors: Elizaveta Popova, Negin Babaiha
-Institution: University of Bonn, Fraunhofer SCAI
-Date: 23/10/2024
-Description: 
-    This script analyzes a dataset of bioinformatics-related image URLs to assess their relevance
-    for a scientific publication. It uses both automated URL accessibility checks and the OpenAI GPT API
-    to classify each image as relevant or irrelevant based on predefined criteria.
-
-    Key functionalities include:
-    - URL accessibility check: Verifies if each image URL is accessible and points to an image file.
-    - Relevance classification via GPT: Authenticates with the OpenAI API to analyze each image and determine
-      relevance based on specific bioinformatics criteria related to Covid-19 and neurodegeneration.
-    - Data storage: Saves the results (relevance classification) in Excel files, with one file containing
-      all URLs and their classifications, and another file with only the relevant URLs.
-    
-    Input:
-        - Excel file containing image URLs.
-    
-    Output:
-        - Excel file with URLs and their GPT-based relevance classifications.
-        - Excel file with only relevant URLs based on GPT's analysis.
-    
-    Requirements:
-        - Access to the OpenAI API (API key required).
-        - Pandas for data handling.
-        - Requests library for HTTP requests.
-    
-    Usage:
-        Run this script in an environment where Pandas, Requests, and OpenAI libraries are installed.
-"""
 
 
 def gpt_authenticate(API_key):
@@ -205,23 +210,36 @@ def get_GPT_answers(dataframe, API_key):
     return parsed_data
 
 
-def relevance_check_main(path, name_raw_data):
+def relevance_check_main(input_path, output_path, api_key):
     """
-    Main function to perform relevance checks on image URLs using GPT and save results to Excel.
+    Runs the full relevance-check pipeline for a dataset of image URLs.
+
+    Steps:
+    1. Loads an Excel file containing image URLs.
+    2. Sends each image to GPT-4o for classification (Yes / No / Error).
+    3. Exports two Excel files:
+    - One with all URLs and GPT relevance labels.
+    - One with only relevant URLs (no label column).
 
     Args:
-        path (str): Directory path containing the input file.
-        name_raw_data (str): Name of the input Excel file with raw data.
+        input_path (str): Full path to the input Excel file.
+        output_path (str): Directory where output Excel files will be saved.
+        api_key (str): OpenAI API key.
+
+    Outputs:
+        - Relevance_assignment_GPT_4o.xlsx
+        - Relevant_URLs_only_GPT_4o.xlsx
     """
+
     # Convert the Excel file into dataframe
-    data_raw = pd.read_excel(os.path.join(path, name_raw_data))
+    data_raw = pd.read_excel(input_path)
 
     # Drop 'Unnamed: 0' only if it exists in the DataFrame
     if 'Unnamed: 0' in data_raw.columns:
         data_raw.drop('Unnamed: 0', axis=1, inplace=True)
     
     # Get relevance data
-    parsed_data_all = get_GPT_answers(data_raw, API_key)
+    parsed_data_all = get_GPT_answers(data_raw, api_key)
     
     # Loop through the list and clean up 'Yes.' or 'No.' to 'Yes' or 'No'
     for item in parsed_data_all:
@@ -231,26 +249,43 @@ def relevance_check_main(path, name_raw_data):
             
     # Create a new DataFrame to store parsed results
     relevance_GPT_all = pd.DataFrame(parsed_data_all, columns=['URL', 'Relevance_GPT'])
-    relevance_GPT_all.to_excel(os.path.join(path, "Relevance_assignment_GPT_4o.xlsx"), index=False)
+    relevance_GPT_all.to_excel(os.path.join(output_path, "Relevance_assignment_GPT_4o.xlsx"), index=False)
     
     # Store only relevant URLs
     relevant_URLs = relevance_GPT_all[relevance_GPT_all['Relevance_GPT'] == 'Yes']
     relevant_URLs.reset_index(drop=True, inplace=True)
-    relevant_URLs.to_excel(os.path.join(path, "Relevant_URLs_only_GPT_4o.xlsx"), index=False)
+    relevant_URLs[['URL']].to_excel(os.path.join(output_path, "Relevant_URLs_only_GPT_4o.xlsx"), index=False)
     
     # Number of images which GPT can't process
     print('Initial total number of URLs:', len(data_raw))
     print("Number of images which GPT can't process",len(relevance_GPT_all.loc[relevance_GPT_all['Relevance_GPT'] == 'Error']))
-    print('Number of relevant images (GPT):', relevant_URLs['Relevance_GPT'].value_counts().get('Yes', 0))
+    print('Number of relevant images (GPT):', len(relevant_URLs))
 
 
 
-    
 if __name__ == "__main__":
-    path = input("Enter the directory path for the raw file: ")
-    name_raw_data = input("Enter the name of the raw data file: ")
-    API_key = input("Enter your API key for GPT: ")
-    
-    # Perform the Relevance Check and save the files
-    relevance_check_main(path, name_raw_data)
-    
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Run GPT-4o-based relevance filtering for biomedical image URLs.")
+    parser.add_argument("--input", required=True, help="Path to input Excel file (containing 'image_url' column).")
+    parser.add_argument("--output_dir", default="./data/URL_relevance_analysis", help="Directory where result files will be saved.")
+    parser.add_argument("--api_key", default=os.getenv("OPENAI_API_KEY"), help="OpenAI API key. Can also be set as OPENAI_API_KEY environment variable.")
+
+    args = parser.parse_args()
+
+    if not args.api_key:
+        raise ValueError("No API key provided. Use --api_key or set the OPENAI_API_KEY environment variable.")
+
+    # Run main processing
+    API_key = args.api_key
+    relevance_check_main(args.input, args.output_dir, args.api_key)
+
+
+# === Example usage ===
+# CLI usage with direct API key:
+# python src/URLs_Relevance_Check.py --input data/Enrichment_Search_URLs.xlsx --api_key YOUR_API_KEY
+#
+# CLI usage with environment variable:
+# export OPENAI_API_KEY=sk-...
+# python src/URLs_Relevance_Check.py --input data/Enrichment_Search_URLs.xlsx
+

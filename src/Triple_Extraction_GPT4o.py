@@ -1,65 +1,66 @@
-from openai import OpenAI
-import pandas as pd
-
+# Triple_Extraction_GPT4o.py
 
 """
-Image Semantic Triples Extraction Script
+Semantic Triple Extraction from Biomedical Images using GPT
 Authors: Elizaveta Popova, Negin Babaiha
 Institution: University of Bonn, Fraunhofer SCAI
 Date: 06/11/2024
-Description: 
-    This script uses OpenAI's GPT model to analyze images depicting comorbidities between COVID-19 and neurodegeneration.
-    The primary goal is to extract key pathophysiological mechanisms and represent each mechanism as semantic triples.
-    Triples are in the format "subject–predicate–object," providing a structured way to capture information from the image.
 
-    Key functionalities include:
-    - Image URL processing: Reads a list of image URLs from an Excel file.
-    - GPT-based mechanism and triples extraction: Uses OpenAI's API to analyze each image and extract mechanisms and related triples.
-    - Data parsing and storage: Extracted data is parsed into a structured format and saved as both .csv and .xlsx files.
+Description:
+    This script extracts semantic triples from images related to the comorbidity between COVID-19 and neurodegeneration,
+    using OpenAI's GPT-4o model. Each image is processed to identify pathophysiological mechanisms represented visually,
+    and for each mechanism, structured triples (subject|predicate|object) are extracted.
 
-    Input:
-        - Excel file containing image URLs (column named "URL").
-    
-    Output:
-        - CSV and Excel files containing extracted mechanisms and triples in a structured format.
+    Key functionalities:
+    1. Reads image URLs from an input Excel file.
+    2. Sends each image to GPT with a strict prompt to ensure triple consistency.
+    3. Parses the model output and extracts structured triples.
+    4. Saves the results to CSV and Excel files.
 
-    Requirements:
-        - Access to the OpenAI API (API key required).
-        - Pandas library for data manipulation.
-        - Requests library for HTTP requests.
+Input:
+    - Excel file containing image URLs in a column named "URL".
+    - OpenAI API key (via CLI argument or environment variable).
 
-    Usage:
-        - Run this script in an environment where Pandas and Requests are installed.
-        - Ensure a valid API key for OpenAI GPT is provided.
+Output:
+    - Triples_Final_All.csv: All extracted semantic triples.
+    - Triples_Final_All.xlsx: Excel version of the same data.
 
+Requirements:
+    - openai
+    - pandas
+    - Internet connection and OpenAI API access.
+
+Usage:
+    python src/Triple_Extraction_GPT4o.py --input data/Relevant_URLs_only_GPT_4o.xlsx --output_dir ./triples_output --api_key YOUR_API_KEY
 """
 
+from openai import OpenAI
+import pandas as pd
+import os
 
 def gpt_authenticate(API_key):
     """
     Authenticates with the OpenAI GPT API using the provided API key.
-    
+
     Args:
-        API_key (str): OpenAI API key for authentication.
+        API_key (str): OpenAI API key.
 
     Returns:
-        OpenAI: Authenticated OpenAI API client.
+        OpenAI: Authenticated API client.
     """
-    client = OpenAI(api_key=API_key)
-    return client
+    return OpenAI(api_key=API_key)
 
 
 def gpt_extract(client, url):
     """
-    Sends an image URL to GPT for analysis, prompting the model to describe key pathophysiological mechanisms 
-    between COVID-19 and neurodegeneration in the form of semantic triples.
+    Sends an image URL to GPT-4o to extract structured pathophysiological triples.
 
     Args:
-        client (OpenAI): Authenticated OpenAI API client.
-        url (str): Image URL for analysis.
+        client (OpenAI): Authenticated API client.
+        url (str): Image URL.
 
     Returns:
-        str: GPT-generated content with extracted mechanisms and triples in structured text.
+        str: Raw GPT output with extracted mechanisms and triples.
     """
     response = client.chat.completions.create(
     model="gpt-4o",
@@ -129,60 +130,72 @@ def gpt_extract(client, url):
     content = response.choices[0].message.content
     return content
 
-def triples_extraction_from_urls(path_URLs, API_key):
+def triples_extraction_from_urls(input_path, output_dir, API_key):
     """
-    Extracts pathophysiological mechanisms and triples from images at specified URLs using the GPT model.
-    Each mechanism is represented as a semantic triple in the format "subject|predicate|object".
+    Main function to process image URLs, extract semantic triples using GPT, and save results.
 
     Args:
-        path_URLs (str): Path to an Excel file containing image URLs.
-        API_key (str): OpenAI API key for authenticating GPT.
-
-    Returns:
-        None: Saves the extracted data to 'Triples_Final.csv' and 'Triples_Final.xlsx'.
+        input_path (str): Path to the input Excel file with image URLs.
+        output_dir (str): Directory where the output files will be saved.
+        API_key (str): OpenAI API key.
     """
     client = gpt_authenticate(API_key)
-    relevance_GPT = pd.read_excel(path_URLs)
+    df = pd.read_excel(input_path)
 
-    # Initialize list to store parsed data
     parsed_data = []
 
-    # Loop through each URL in the dataframe
-    for idx, row in relevance_GPT.iterrows(): 
+    for idx, row in df.iterrows(): 
         try:
             url = row["URL"]
-
-            # Extract content from the image using GPT
             content = gpt_extract(client, url)
             print(url, content)
 
-            # Parse the text for mechanisms and triples
+            # Parse mechanisms
             mechanisms = content.strip().split('Pathophysiological Process: ')
-            for mechanism_block in mechanisms[1:]:  # Skip the first split part (before the first "Process")
+            for mechanism_block in mechanisms[1:]:
                 lines = mechanism_block.strip().split('\n')
                 mechanism_name = lines[0].strip()
-                triples = lines[2:]  # Skip the 'Triples:' line
+                triples = lines[2:]  # skip the "Triples:" line
 
                 for triple in triples:
                     subject, predicate, obj = triple.strip().split('|')
                     parsed_data.append([url, mechanism_name, subject, predicate, obj])
-
         except Exception as e:
             print(f"Error processing {url}: {e}")
-            continue  # Continue to the next row if there's an error
+            continue
 
-    # Save parsed data to a DataFrame
     parsed_df = pd.DataFrame(parsed_data, columns=['URL', 'Pathophysiological Process', 'Subject', 'Predicate', 'Object'])
 
-    # Save to CSV and Excel
-    parsed_df.to_csv('Triples_Final_All.csv', index=False)
-    parsed_df.to_excel('Triples_Final_All.xlsx', index=False)
-    print('Triples_Final file is successfully saved as CSV and Excel.')
+    # Ensure output directory exists
+    os.makedirs(output_dir, exist_ok=True)
+
+    csv_path = os.path.join(output_dir, "Triples_Final_All_Relevant.csv")
+    xlsx_path = os.path.join(output_dir, "Triples_Final_All_Relevant.xlsx")
+
+    parsed_df.to_csv(csv_path, index=False)
+    parsed_df.to_excel(xlsx_path, index=False)
+
+    print(f"Triples saved to:\n- {csv_path}\n- {xlsx_path}")
 
 
 if __name__ == "__main__":
-    path_URLs = input("Enter the path for the file with image URLs to analyze: ")
-    API_key = input("Enter your API key for GPT: ")
-    
-    # Perform the Triples Extraction and save the files
-    triples_extraction_from_urls(path_URLs, API_key)
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Extract semantic triples from images using OpenAI GPT-4o.")
+    parser.add_argument("--input", required=True, help="Path to Excel file with image URLs (column name: 'URL').")
+    parser.add_argument("--output_dir", default="./data/triples_output", help="Directory to save output files.")
+    parser.add_argument("--api_key", default=os.getenv("OPENAI_API_KEY"), help="OpenAI API key (can also be set via OPENAI_API_KEY env variable).")
+
+    args = parser.parse_args()
+
+    if not args.api_key:
+        raise ValueError("No API key provided. Use --api_key or set the OPENAI_API_KEY environment variable.")
+
+    triples_extraction_from_urls(args.input, args.output_dir, args.api_key)
+
+
+# === Example usage ===
+# python src/Triple_Extraction_GPT4o.py --input data/Final_Relevant_URLs.xlsx --output_dir ./data/triples_output --api_key YOUR_API_KEY
+# or, using environment variable:
+# export OPENAI_API_KEY=sk-...
+# python src/Triple_Extraction_GPT4o.py --input data/Final_Relevant_URLs.xlsx
