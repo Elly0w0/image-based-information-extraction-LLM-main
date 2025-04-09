@@ -1,3 +1,59 @@
+# Image_Enrichment_Analysis.py
+
+"""
+Image Enrichment and De-duplication Script
+Authors: Elizaveta Popova, Negin Babaiha
+Institution: University of Bonn, Fraunhofer SCAI
+Date: 23/10/2024
+
+Description:
+    This script automates image enrichment using Google Images and Selenium.
+    It retrieves and compares image URLs, removes perceptual duplicates, and retains
+    only the highest-resolution image among near-duplicates.
+
+    Steps:
+    1. Google image search via Selenium
+    2. Retrieval of main and similar image URLs
+    3. Perceptual hashing using imagehash
+    4. Hamming distance to detect near-duplicates
+    5. Duplicate removal based on resolution
+    6. Final export to Excel files
+
+Input (via command-line arguments):
+    --query (str): Search query for Google Images
+    --main (int): Number of main images to process
+    --similar (int): Number of similar/faceted images to process per main image
+    --output_raw (str): Output filename for raw scraped image URLs (without extension)
+    --output_clean (str): Output filename for cleaned image list (without extension)
+    --outdir (str): Output directory to save the Excel files
+
+Output:
+    - [output_raw].xlsx: Raw image list including all retrieved URLs
+    - [output_clean].xlsx: Cleaned list of images with duplicates removed
+
+Requirements:
+    - selenium
+    - pillow
+    - requests
+    - imagehash
+    - pandas
+    - matplotlib (for visual inspection)
+
+Usage:
+    python src/Image_Enrichment_Analysis.py \
+        --query "Covid-19 and Neurodegeneration" \
+        --main 5 \
+        --similar 3 \
+        --output_raw Enrichment_Search_URLs_0 \
+        --output_clean Enrichment_Cleaned_0 \
+        --outdir ./data
+
+Warning:
+    When the Chrome browser window opens during scraping, you may need to manually accept cookies or close pop-ups
+    (e.g., "Accept All", "Decline", etc.). Please monitor the browser briefly to ensure smooth operation.
+"""
+
+
 import os
 import pandas as pd
 import time
@@ -5,7 +61,6 @@ from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from selenium.common.exceptions import StaleElementReferenceException, ElementClickInterceptedException, NoSuchElementException
-import re
 import random
 import requests
 from PIL import Image
@@ -14,54 +69,6 @@ import imagehash
 from requests.exceptions import ConnectionError, Timeout
 from http.client import RemoteDisconnected
 import matplotlib.pyplot as plt
-
-
-"""
-Image Enrichment Analysis Script
-Author: Elizaveta Popova, Negin Babaiha
-Institution: University of Bonn, Fraunhofer SCAI
-Date: 23/10/2024
-Description: 
-    This script automates image enrichment analysis by conducting a Google Image search based on a given query,
-    scraping images related to the search term, and performing a series of operations to identify and handle 
-    near-duplicate images. The goal is to facilitate the curation of high-quality, unique images for bioinformatics 
-    research and scientific publications.
-
-    Key functionalities include:
-    - Image Scraping and URL Extraction: Automates the Google Image search using Selenium to retrieve image thumbnails
-      and extract their direct URLs. Functions handle scrolling through search results, clicking "See more" for similar 
-      images, and managing potential errors during the scraping process.
-      
-    - Image Processing and Similarity Analysis: Downloads images and uses perceptual hashing (pHash) to create a compact 
-      representation of each image. Perceptual hashing is resilient to small changes, making it effective for detecting 
-      near-duplicates. The Hamming distance between hashes is computed, and similar images are identified based on a 
-      defined similarity threshold.
-
-    - Resolution-Based Duplicate Removal: For near-duplicate images identified by hashing, the script compares image 
-      resolutions and retains only the highest-resolution version, ensuring optimal image quality in the final dataset.
-      If images have the same resolution, one is arbitrarily removed to avoid redundancy.
-
-    - Data Storage and Export: Saves the results in Excel files for user review and utilization. Users are prompted 
-      to specify a file name and location to store the curated dataset.
-
-    Input:
-        - A search query string to retrieve relevant images from Google Images.
-        - User-defined parameters for the number of main and similar images to process.
-
-    Output:
-        - Excel file with URLs and thumbnails of the retrieved images.
-        - Excel file of curated images with duplicates removed, stored based on user-defined file names.
-
-    Requirements:
-        - Selenium with Chrome WebDriver for automating Google Image scraping.
-        - Requests for handling HTTP requests for image downloads.
-        - ImageHash library for perceptual hashing.
-        - Pandas for data handling and storage in Excel format.
-
-    Usage:
-        - Run this script in an environment where all required libraries are installed.
-        - Chrome WebDriver must be accessible to Selenium for controlling the Chrome browser.
-"""
 
 
 def find_thumbnails_on_page(driver, num_images):
@@ -133,7 +140,7 @@ def find_image_URL(some_url_list, some_thumbnail, driver):
         print("No image URL found")
 
 
-def google_image_search(query, download_path, num_images_main, num_images_similar):
+def google_image_search(query, download_path, num_images_main, num_images_similar, output_raw_filename):
     """
     Conducts a Google Image search for a given query, collects image URLs, and saves the results to an Excel file.
     It processes both main and similar images from the search results.
@@ -143,6 +150,7 @@ def google_image_search(query, download_path, num_images_main, num_images_simila
         download_path (str): The path where the output Excel file will be saved.
         num_images_main (int): Number of main images to process.
         num_images_similar (int): Number of similar images to process after clicking "See more".
+        output_raw_filename (str): Desired filename (without extension) for the raw image URL list.
 
     Returns:
         pandas.DataFrame: A DataFrame containing the thumbnail and image URLs found during the search.
@@ -162,7 +170,8 @@ def google_image_search(query, download_path, num_images_main, num_images_simila
 
     url_list = {'thumbnail_url': [], 'image_url': []}
     
-    for thumbnail_num in range(len(thumbnails[:num_images_main])+1):
+    #for thumbnail_num in range(len(thumbnails[:num_images_main])+1):
+    for thumbnail_num in range(len(thumbnails[:num_images_main])):
         print("Processing image...")
         
         thumbnail = thumbnails[thumbnail_num]
@@ -239,16 +248,12 @@ def google_image_search(query, download_path, num_images_main, num_images_simila
         url_list[key] = url_list[key][:min_length]
 
     data_table = pd.DataFrame(url_list)
-    
-    name_txt = input("Type name of .xlsx:")  
-    file_path = os.path.join(download_path, f"{name_txt}.xlsx")
-    data_table.to_excel(file_path)  
+
+    file_path = os.path.join(download_path, f"{output_raw_filename}.xlsx")
+    data_table.to_excel(file_path)
     print(f"Saved data to {file_path}")
-    
+
     return data_table
-
-
-
 
 
 # Comparing images and removing duplicates based on resolution.
@@ -421,7 +426,21 @@ def remove_lower_resolution_duplicate(df, duplicates_dict):
     
     return df
 
-def dataset_purification(raw_df):
+
+def dataset_purification(raw_df, download_path, output_clean_filename):
+    """
+    Cleans and deduplicates image URLs by:
+    - Removing invalid and duplicate entries
+    - Detecting near-duplicates using perceptual hashing
+    - Keeping higher-resolution images
+    - Saving the cleaned dataset to Excel
+
+    Args:
+        raw_df (pd.DataFrame): DataFrame with image URLs.
+        download_path (str): Directory to save the final file.
+        output_clean_filename (str): Name of the final cleaned Excel file (without extension).
+    """
+
     # First purification
     raw_df.drop(raw_df[raw_df.image_url == "Processing_problems"].index, inplace=True)
     raw_df = raw_df.drop_duplicates(subset='image_url')
@@ -434,39 +453,46 @@ def dataset_purification(raw_df):
     hash_values = list(image_hashes.values())
     for i, hash1 in enumerate(hash_values):
         for j, hash2 in enumerate(hash_values[i+1:], i+1):
-            # Calculate the Hamming distance between hashes (lower is more similar)
-            if hash1 - hash2 < 8:  # Adjust the threshold for near-duplicates
+            if hash1 - hash2 < 8:
                 duplicates.append((list(image_hashes.keys())[i], list(image_hashes.keys())[j]))
     
-    # Display nearly identical image pairs
     print(f"Found {len(duplicates)} near-duplicate image pairs:")
     for dup in duplicates:
         print(f"Duplicate pair: {dup[0]} and {dup[1]}")
-        # Display the images side by side
         display_image_pairs(dup[0], dup[1])
         
-    # Apply the function to remove lower resolution URLs from the DataFrame
     df_cleaned = remove_lower_resolution_duplicate(raw_df, duplicates)
     
-    # Ask the user to provide a name for the output file
-    file_name = input("Enter the name for the Excel file (without extension): ")
-
-    # Create the full file path (save to the current working directory)
-    file_path = f"./{file_name}.xlsx"
-
-    # Save the DataFrame to the specified Excel file
+    file_path = os.path.join(download_path, f"{output_clean_filename}.xlsx")
     df_cleaned.to_excel(file_path)
-
     print(f"File saved successfully as {file_path}")
 
 if __name__ == "__main__":
-    query = input("Enter the search query: ")
-    download_path = "./"
-    num_images_main = int(input("Enter the number of images for the main search: "))
-    num_images_similar = int(input("Enter the number of images for the faceted search (similar images): "))
+    import argparse
 
-    # Perform Google Image search
-    data_table = google_image_search(query, download_path, num_images_main, num_images_similar)
+    parser = argparse.ArgumentParser(description="Image enrichment and duplicate removal using Google Images + perceptual hashing")
+    parser.add_argument("--query", required=True, help="Search query for Google Images (use quotes for multi-word queries)")
+    parser.add_argument("--main", type=int, default=100, help="Number of main search images to collect (default: 100)")
+    parser.add_argument("--similar", type=int, default=100, help="Number of similar/faceted images to collect (default: 100)")
+    parser.add_argument("--output_raw", required=True, help="Filename (without extension) for raw image output")
+    parser.add_argument("--output_clean", required=True, help="Filename (without extension) for cleaned de-duplicated output")
+    parser.add_argument("--outdir", default="./data", help="Output directory (default: ./data)")
+    
+    args = parser.parse_args()
 
-    # Save the cleaned dataset
-    dataset_purification(data_table)
+    # Run image search and save raw URLs
+    data_table = google_image_search(
+        query=args.query,
+        download_path=args.outdir,
+        num_images_main=args.main,
+        num_images_similar=args.similar,
+        output_raw_filename=args.output_raw
+    )
+
+    # Run cleaning and save cleaned file
+    dataset_purification(data_table, download_path=args.outdir, output_clean_filename=args.output_clean)
+
+
+
+# === Example usage ===
+# python src/Image_Enrichment_Analysis.py --query "Covid-19 and Neurodegeneration" --main 5 --similar 3 --output_raw Enrichment_Search_URLs --output_clean Enrichment_Cleaned --outdir ./data

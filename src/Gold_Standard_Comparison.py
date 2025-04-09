@@ -1,198 +1,148 @@
-# === Import required libraries ===
-import pandas as pd  
-from sentence_transformers import SentenceTransformer, util  # For embedding triples and calculating similarity
-import numpy as np  
-import matplotlib.pyplot as plt  
+# Gold_Standard_Comparison.py
 
 """
 Semantic Triple Gold Standard Comparison
 Authors: Elizaveta Popova, Negin Babaiha
 Institution: University of Bonn, Fraunhofer SCAI
 Date: 27/03/2025
+
 Description:
     This script evaluates the semantic similarity of subject-object triples extracted from biomedical images.
-    It compares automatically extracted triples with a manually curated gold standard to assess extraction quality.
+    It compares automatically extracted triples (e.g., GPT-generated) with a manually curated gold standard (CBM)
+    using Sentence-BERT embeddings. 
 
-    Focus:
-    - Only compares **Subject–Object** pairs (Predicate is excluded).
-    - Uses SentenceTransformer embeddings to compute semantic similarity.
-    - Calculates Combined Similarity Score (CSS) based on similarity and F1-score.
-    - Skips images that are missing in either dataset to ensure fair evaluation.
+    It calculates a Combined Similarity Score (CSS), which blends cosine similarity and F1-score, for each image.
 
-    Input:
-        - Two Excel files containing extracted triples:
-            1. Gold standard file (with column 'Image_number')
-            2. Evaluation file (same format)
+Focus:
+    - Compares only Subject–Object pairs (ignores Predicate).
+    - Uses pre-trained sentence-transformers.
+    - Skips images that are missing in either dataset.
 
-    Output:
-        - Console output of the average CSS across evaluated images.
+Input:
+    - Two Excel files:
+        1. Gold standard file (e.g., CBM annotated triples)
+        2. Evaluation file (e.g., GPT-generated triples)
 
-    Requirements:
-        - sentence-transformers
-        - pandas
-        - numpy
+Output:
+    - Console output of per-image comparisons (with match quality)
+    - Average Combined Similarity Score (CSS) across all images
 
-    Usage:
-        - Run the script in an environment with the required libraries installed.
-        - Ensure both Excel files are in the correct directory.
+Usage:
+    Run from the project root:
+    >>> python src/Gold_Standard_Comparison.py --gold <gold_file.xlsx> --eval <eval_file.xlsx>
+
+Requirements:
+    - pandas
+    - numpy
+    - sentence-transformers
+    - matplotlib (optional, for future extensions)
 """
 
-# === Load Excel Data ===
-file_Gold_path = "./data/GoldSt_comparison/Triples_CBM_Gold_Standard.xlsx"  # Path to the gold standard triples
-file_Eval_path = "./data/GoldSt_comparison/Triples_GPT_for_comparison.xlsx"  # Path to the evaluated/generated triples
+import pandas as pd
+import numpy as np
+import torch
+from sentence_transformers import SentenceTransformer, util
+import argparse
 
-df_Gold = pd.read_excel(file_Gold_path)  
-df_Eval = pd.read_excel(file_Eval_path)  
+# === Argument Parsing ===
+parser = argparse.ArgumentParser(description="Compare GPT triples to gold standard using semantic similarity (CSS).")
+parser.add_argument("--gold", required=True, help="Path to manually curated (gold standard) Excel file")
+parser.add_argument("--eval", required=True, help="Path to evaluation/generated triples file")
+args = parser.parse_args()
 
-# === Load Pre-trained SentenceTransformer Model ===
+file_Gold_path = args.gold
+file_Eval_path = args.eval
+
+# === Load Data ===
+df_Gold = pd.read_excel(file_Gold_path)
+df_Eval = pd.read_excel(file_Eval_path)
+
+# === Load Pretrained Sentence-BERT Model ===
 model = SentenceTransformer('all-MiniLM-L6-v2')
 
 def create_subject_object_dict(df):
     """
-    Converts the DataFrame into a dictionary mapping each image (Image_number)
-    to a list of subject-object strings. Predicates are ignored.
-
-    Args:
-        df (pd.DataFrame): DataFrame containing 'Subject', 'Object', and 'Image_number' columns.
-
-    Returns:
-        dict: {Image_number: [list of 'Subject Object' strings]}
+    Groups triples by Image_number, returning subject-object phrases.
     """
     triple_dict = {}
-    key_col = 'Image_number'  # Column used to group triples by image
-
     for _, row in df.iterrows():
-        key = row[key_col]  # Get image identifier
-        subject = row['Subject'].replace('_', ' ') if pd.notna(row['Subject']) else ''  # Clean subject
-        # predicate = row['Predicate'].replace('_', ' ') if pd.notna(row['Predicate']) else ''
-        obj = row['Object'].replace('_', ' ') if pd.notna(row['Object']) else ''  # Clean object
-
-        # Only add triple if both subject and object are non-empty
-        if subject and obj:
-            triple = f"{subject} {obj}"  # Concatenate subject and object
-            if key not in triple_dict:
-                triple_dict[key] = []
-            triple_dict[key].append(triple)  # Add triple to the list for this image
-
+        key = row['Image_number']
+        subj = row['Subject'].replace('_', ' ') if pd.notna(row['Subject']) else ''
+        obj = row['Object'].replace('_', ' ') if pd.notna(row['Object']) else ''
+        if subj and obj:
+            phrase = f"{subj} {obj}"
+            triple_dict.setdefault(key, []).append(phrase)
     return triple_dict
 
 def similarity_score_subject_object(df_gold, df_extracted, image_key):
     """
-    Computes the Combined Similarity Score (CSS) for a single image.
-    Compares subject-object pairs from evaluated data to the gold standard.
-
-    Args:
-        df_gold (pd.DataFrame): Gold standard DataFrame
-        df_extracted (pd.DataFrame): Evaluated/generated DataFrame
-        image_key (str): Image_number used for filtering
-
-    Returns:
-        float or None: CSS value, or None if either set is empty
+    Computes Combined Similarity Score (CSS) for one image.
+    CSS = 0.6 * avg_similarity + 0.4 * F1-score
     """
-    # Create dictionaries mapping image → [triples]
     gold_dict = create_subject_object_dict(df_gold)
-    extracted_dict = create_subject_object_dict(df_extracted)
+    eval_dict = create_subject_object_dict(df_extracted)
 
-    # Get triples for the specific image
-    gold_triples = gold_dict.get(image_key, [])
-    extracted_triples = extracted_dict.get(image_key, [])
+    gold = gold_dict.get(image_key, [])
+    extracted = eval_dict.get(image_key, [])
+    if not gold or not extracted:
+        return None
 
-    if not gold_triples or not extracted_triples:
-        return None  # If no data, skip this image
+    gold_embeds = model.encode(gold, convert_to_tensor=True)
+    eval_embeds = model.encode(extracted, convert_to_tensor=True)
 
-    # Encode subject-object pairs into sentence embeddings
-    gold_embeds = model.encode(gold_triples, convert_to_tensor=True)
-    extracted_embeds = model.encode(extracted_triples, convert_to_tensor=True)
+    sims = util.cos_sim(eval_embeds, gold_embeds).cpu().numpy()
+    SIM_THRESHOLD = 0.5
+    TP, FP, FN = 0, 0, 0
+    best_scores = []
 
-    # Compute cosine similarity matrix between all pairs
-    similarities = util.cos_sim(extracted_embeds, gold_embeds).cpu().numpy()
-
-    SIMILARITY_THRESHOLD = 0.5  # Threshold to consider a match meaningful
-    TP, FP = 0, 0  # True Positives, False Positives
-    best_match_scores = []  # Best similarity score per extracted triple
-
-    # # For each extracted triple, find the best match in gold standard
-    # for i, extracted in enumerate(extracted_triples):
-    #     if similarities.shape[1] > 0:
-    #         best_match_idx = np.argmax(similarities[i])  # Get the index of the best match
-    #         best_match_score = similarities[i][best_match_idx]  # Get the similarity score
-    #         best_match_scores.append(best_match_score)
-
-    #         # If similarity is above threshold, count as TP; else FP
-    #         if best_match_score >= SIMILARITY_THRESHOLD:
-    #             TP += 1
-    #         else:
-    #             FP += 1
-    #     else:
-    #         best_match_scores.append(0)
-
-    print(f"\n Image {image_key} - Comparing Extracted vs Gold Standard Triples:")
-    for i, extracted in enumerate(extracted_triples):
-        if similarities.shape[1] > 0:
-            best_match_idx = np.argmax(similarities[i])
-            best_match_score = similarities[i][best_match_idx]
-            gold_match = gold_triples[best_match_idx]
-            best_match_scores.append(best_match_score)
-
-            match_status = "✅ MATCH" if best_match_score >= SIMILARITY_THRESHOLD else "❌ NO MATCH"
-            print(f"Extracted: \"{extracted}\" ↔ Gold: \"{gold_match}\" | Score: {best_match_score:.4f} → {match_status}")
-
-            if best_match_score >= SIMILARITY_THRESHOLD:
+    print(f"\nImage {image_key} - Matching extracted to gold triples:")
+    for i, extracted_text in enumerate(extracted):
+        if sims.shape[1] > 0:
+            best_idx = np.argmax(sims[i])
+            best_score = sims[i][best_idx]
+            gold_match = gold[best_idx]
+            match_str = "✅ MATCH" if best_score >= SIM_THRESHOLD else "❌ NO MATCH"
+            print(f'  "{extracted_text}" ↔ "{gold_match}" | Score: {best_score:.4f} → {match_str}')
+            best_scores.append(best_score)
+            if best_score >= SIM_THRESHOLD:
                 TP += 1
             else:
                 FP += 1
         else:
-            best_match_scores.append(0)
-            print(f"Extracted: \"{extracted}\" ↔ Gold: [NO MATCH FOUND] → Score: 0.000 ❌")
+            best_scores.append(0)
 
+    FN = max(0, len(gold) - TP)
+    prec = TP / (TP + FP) if (TP + FP) > 0 else 0
+    rec = TP / (TP + FN) if (TP + FN) > 0 else 0
+    f1 = 2 * prec * rec / (prec + rec) if (prec + rec) > 0 else 0
+    avg_sim = np.mean(best_scores)
 
-    # Count false negatives: gold triples that had no match
-    FN = max(0, len(gold_triples) - TP)
+    css = 0.6 * avg_sim + 0.4 * f1
+    return css
 
-    # Compute precision, recall, F1
-    precision = TP / (TP + FP) if (TP + FP) > 0 else 0
-    recall = TP / (TP + FN) if (TP + FN) > 0 else 0
-    f1_score = 2 * (precision * recall) / (precision + recall) if (precision + recall) > 0 else 0
-    average_similarity = np.mean(best_match_scores) if best_match_scores else 0
-
-    # Compute Combined Similarity Score (CSS)
-    CSS = 0.6 * average_similarity + 0.4 * f1_score
-    return CSS
-
-def compare_all_images(df_gold, df_extracted):
+def compare_all_images(df_gold, df_eval):
     """
-    Computes the average CSS over all images that exist in both datasets.
-
-    Args:
-        df_gold (pd.DataFrame): Gold standard DataFrame
-        df_extracted (pd.DataFrame): Evaluated/generated DataFrame
-
-    Returns:
-        float: Average CSS across all common images
+    Loops through all common images and calculates average CSS.
     """
-    # Identify common image keys in both datasets
-    image_keys_gold = set(df_gold['Image_number'].unique())
-    image_keys_eval = set(df_extracted['Image_number'].unique())
-    common_image_keys = image_keys_gold.intersection(image_keys_eval)
+    keys_gold = set(df_gold['Image_number'].unique())
+    keys_eval = set(df_eval['Image_number'].unique())
+    common_keys = keys_gold & keys_eval
 
-    css_scores = []
+    def natural_sort_key(k):
+        return int(k.split('_')[-1])
 
-        # Natural sort based on image number
-    def sort_key(key):
-        return int(key.split('_')[-1])
-
-    for key in sorted(common_image_keys, key=sort_key):
-        css = similarity_score_subject_object(df_Gold, df_Eval, key)
-        css = similarity_score_subject_object(df_gold, df_extracted, key)
+    css_list = []
+    for key in sorted(common_keys, key=natural_sort_key):
+        css = similarity_score_subject_object(df_gold, df_eval, key)
         if css is not None:
-            css_scores.append(css)
+            css_list.append(css)
 
-    # Average CSS, excluding images with no comparisons
-    average_css = sum(css_scores) / len(css_scores) if css_scores else 0
-    return average_css
+    return sum(css_list) / len(css_list) if css_list else 0
 
 # === Main Execution ===
 if __name__ == "__main__":
-    avg_css = compare_all_images(df_Gold, df_Eval)  # Compare the two datasets
-    print(f"Average Combined Similarity Score (CSS) across evaluated images: {avg_css:.4f}")
- 
+    avg_css = compare_all_images(df_Gold, df_Eval)
+    print(f"\n✅ Average Combined Similarity Score (CSS): {avg_css:.4f}")
+
+# === Example usage ===
+# python src/Gold_Standard_Comparison.py --gold data/gold_standard_comparison/Triples_CBM_Gold_Standard.xlsx --eval data/gold_standard_comparison/Triples_GPT_for_comparison.xlsx
