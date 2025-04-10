@@ -15,6 +15,7 @@ This research project aims to uncover mechanistic connections between **COVID-19
 | `Triples_Categorization.py` | See detailed explanation below ↓ |
 | `Triple_Extraction_GPT4o.py` | Extracts structured semantic triples from biomedical images using GPT-4o, following strict prompt formats for consistency and downstream integration. |
 | `URLs_Relevance_Check.py` | Filters biomedical images based on relevance to COVID-19 and neurodegenerative diseases using GPT-4o. Includes accessibility check and result export. |
+| `GPT4o_uncategorized_handling.py` | Assigns categories to previously Uncategorized triples using GPT-4o based on their pathophysiological process (PP). |
 
 ---
 
@@ -52,9 +53,28 @@ Place it in the following directory:
 ```
 
 ---
+## Fallback Categorization using GPT-4o
+
+**Script:** `GPT4o_uncategorized_handling.py`  
+To resolve previously *Uncategorized* triples (due to ambiguous or rare phrasing), we use GPT-4o as a semantic fallback. For each triple where the BERT + MeSH classifier fails, we send the **Pathophysiological Process** (PP) to GPT-4o with a structured prompt asking it to assign one of the six defined categories.
+
+This fallback system outputs:
+- `Category_GPT`: The category predicted by GPT-4o
+- `Final_Category`: A merged field that keeps BERT's prediction (if available) or uses GPT's if not
+
+This hybrid approach improves recall and ensures a complete dataset for downstream graph-based or statistical analyses.
+
+### How to Run:
+```bash
+python src/GPT4o_uncategorized_handling.py \
+  --input data/triples_output/Triples_Final_All_Relevant_Categorized.xlsx \
+  --output data/triples_output/Triples_Final_All_Relevant_Categorized_GPT4o \
+  --api_key YOUR_API_KEY
+
+---
 
 ## GPT API Usage
-This project relies heavily on **OpenAI GPT-4o** and **GPT-4V** for multimodal processing of biomedical images. You must have valid API access to use the scripts for:
+This project relies heavily on **OpenAI GPT-4o** for multimodal processing of biomedical images. You must have valid API access to use the scripts for:
 - Relevance classification
 - Triple extraction
 
@@ -74,7 +94,8 @@ export OPENAI_API_KEY=sk-...
 All major outputs are saved as `.xlsx` and `.csv` files under the `/data/` or `/triples_output/` directories:
 - `Relevant_URLs_only_GPT_4o.xlsx` – Final set of filtered relevant image URLs.
 - `Triples_Final_All_Relevant.csv/.xlsx` – Semantic triples extracted from figures.
-- `Triples_Final_All_Relevant_Categorized.xlsx` – Categorized mechanisms with BERT + MeSH.
+- `Triples_Final_All_Relevant_Categorized.xlsx/.csv` – Categorized mechanisms with BERT + MeSH.
+- `Triples_Final_All_Relevant_Categorized_GPT4o.xlsx/.csv` – Same as above but with previously uncategorized items resolved using GPT-4o.
 - `Supplementary_material_Table_1.xlsx` – Prompt and hyperparameter evaluations.
 - Evaluation metrics (CSS scores) from gold standard comparisons.
 
@@ -107,6 +128,10 @@ python src/Triple_Extraction_GPT4o.py --input data/Relevant_URLs_only_GPT_4o.xls
 
 # 4. Categorize pathophysiological processes
 python src/Triples_Categorization.py --input triples_output/Triples_Final_All_Relevant.csv --output triples_output/Triples_Final_All_Relevant_Categorized --mode pp
+
+# 5. Resolve uncategorized entries using GPT-4o
+python src/GPT4o_uncategorized_handling.py --input triples_output/Triples_Final_All_Relevant_Categorized.xlsx --output triples_output/Triples_Final_All_Relevant_Categorized_GPT4o
+
 ```
 
 ---
