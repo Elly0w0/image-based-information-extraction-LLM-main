@@ -91,7 +91,7 @@ def similarity_score_subject_object(df_gold, df_extracted, image_key):
     eval_embeds = model.encode(extracted, convert_to_tensor=True)
 
     sims = util.cos_sim(eval_embeds, gold_embeds).cpu().numpy()
-    SIM_THRESHOLD = 0.5
+    SIM_THRESHOLD = 0.75
     TP, FP, FN = 0, 0, 0
     best_scores = []
 
