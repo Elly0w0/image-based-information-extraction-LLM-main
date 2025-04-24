@@ -11,12 +11,13 @@ Description:
     It compares automatically extracted triples (e.g., GPT-generated) with a manually curated gold standard (CBM)
     using Sentence-BERT embeddings. 
 
-    It calculates a Combined Similarity Score (CSS), which blends cosine similarity and F1-score, for each image.
+    It calculates a Combined Similarity Score (CSS), which blends cosine similarity and F1-score, compared only for images present 
+    in both datasets (common Image_number values).
 
 Focus:
     - Compares only Subject–Object pairs (ignores Predicate).
     - Uses pre-trained sentence-transformers.
-    - Skips images that are missing in either dataset.
+    - Comparison is performed only on images present in both datasets. Images missing from one side are skipped.
 
 Input:
     - Two Excel files:
@@ -91,7 +92,7 @@ def similarity_score_subject_object(df_gold, df_extracted, image_key):
     eval_embeds = model.encode(extracted, convert_to_tensor=True)
 
     sims = util.cos_sim(eval_embeds, gold_embeds).cpu().numpy()
-    SIM_THRESHOLD = 0.75
+    SIM_THRESHOLD = 0.6
     TP, FP, FN = 0, 0, 0
     best_scores = []
 
@@ -103,19 +104,24 @@ def similarity_score_subject_object(df_gold, df_extracted, image_key):
             gold_match = gold[best_idx]
             match_str = "✅ MATCH" if best_score >= SIM_THRESHOLD else "❌ NO MATCH"
             print(f'  "{extracted_text}" ↔ "{gold_match}" | Score: {best_score:.4f} → {match_str}')
-            best_scores.append(best_score)
             if best_score >= SIM_THRESHOLD:
                 TP += 1
+                best_scores.append(best_score)  # Only count matched pairs (TP)
             else:
                 FP += 1
         else:
-            best_scores.append(0)
+            FP += 1  # No gold triples to match against = false positive
 
     FN = max(0, len(gold) - TP)
     prec = TP / (TP + FP) if (TP + FP) > 0 else 0
     rec = TP / (TP + FN) if (TP + FN) > 0 else 0
     f1 = 2 * prec * rec / (prec + rec) if (prec + rec) > 0 else 0
-    avg_sim = np.mean(best_scores)
+
+    # Average similarity calculation:
+    if best_scores:  # Only if there were matches
+        avg_sim = np.mean(best_scores)
+    else:
+        avg_sim = 0  # No matches → avg_sim = 0
 
     css = 0.6 * avg_sim + 0.4 * f1
     return css
@@ -136,6 +142,10 @@ def compare_all_images(df_gold, df_eval):
         css = similarity_score_subject_object(df_gold, df_eval, key)
         if css is not None:
             css_list.append(css)
+    
+    print(f"Total images in gold: {len(keys_gold)}")
+    print(f"Total images in eval: {len(keys_eval)}")
+    print(f"Common images compared: {len(common_keys)}")
 
     return sum(css_list) / len(css_list) if css_list else 0
 
