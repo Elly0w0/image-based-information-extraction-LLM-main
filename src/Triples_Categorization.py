@@ -120,7 +120,7 @@ def run_classification(input_path, mesh_json_path, output_path, mode="pp"):
 
     df.to_csv(output_path + ".csv", index=False)
     df.to_excel(output_path + ".xlsx", index=False)
-    print("Classification complete and results exported! ✅")
+    print("Classification complete and results exported!")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Classify biomedical triples using BERT and MeSH keywords.")

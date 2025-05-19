@@ -1,75 +1,152 @@
+
 # Identifying Mechanistic Links Between COVID-19 and Neurodegenerative Diseases
 
-**Project Goal:**  
-This research project aims to uncover mechanistic connections between **COVID-19** and **neurodegenerative diseases** by extracting structured information from **biomedical figures and graphical abstracts** using advanced natural language processing (NLP) and image analysis techniques.
+**Authors**: Elizaveta Popova, Negin Sadat Babaiha  
+**Institutions**: University of Bonn, Fraunhofer SCAI  
+**Contact**: elizaveta.popova@uni-bonn.de, negin.babaiha@scai.fraunhofer.de  
 
 ---
 
-## Project Structure (Scripts Overview)
+## Abstract
 
-| Script | Description |
-|--------|-------------|
-| `Gold_Standard_Comparison.py` | Compares GPT-extracted triples against a manually curated gold standard using a Combined Similarity Score (CSS) that integrates semantic and structural accuracy. |
-| `Hyperparameters_and_Prompt_Assessment.py` | Evaluates different GPT prompt templates and hyperparameter configurations (temperature, top-p) to optimize extraction quality. Generates a CSS performance plot. |
-| `Image_Enrichment_Analysis.py` | Automates large-scale biomedical image scraping from Google Images and removes near-duplicates via perceptual hashing and resolution filtering. |
-| `Triples_Categorization.py` | See detailed explanation below ↓ |
-| `Triple_Extraction_GPT4o.py` | Extracts structured semantic triples from biomedical images using GPT-4o, following strict prompt formats for consistency and downstream integration. |
-| `URLs_Relevance_Check.py` | Filters biomedical images based on relevance to COVID-19 and neurodegenerative diseases using GPT-4o. Includes accessibility check and result export. |
-| `GPT4o_uncategorized_handling.py` | Assigns categories to previously Uncategorized triples using GPT-4o based on their pathophysiological process (PP). |
+This project presents a computational framework to identify mechanistic connections between **COVID-19** and **neurodegenerative diseases** by extracting and analyzing **semantic triples** from biomedical figures. The pipeline combines **LLM-based triple extraction**, **BioBERT-based semantic comparison**, and **MeSH-informed categorization** to map biological processes depicted in literature into structured and interpretable knowledge.
 
 ---
 
-## Pathophysiological Process Classification using BERT + MeSH
+## Project Overview
 
-**Script:** `Triples_Categorization.py`  
-This module classifies biomedical pathophysiological processes into predefined mechanistic categories using **BERT-based semantic similarity** with **ontology-derived keywords** from the MeSH database.
+### Goals
+- Extract biological mechanisms from graphical abstracts
+- Compare GPT-generated triples to a manually curated gold standard
+- Classify processes into domain-relevant pathophysiological categories
 
-### Categories Used:
-- Viral Entry and Neuroinvasion  
-- Immune and Inflammatory Response  
-- Neurodegenerative Mechanisms  
-- Vascular Effects  
-- Psychological and Neurological Symptoms  
-- Systemic Cross-Organ Effects
+### Key Techniques
+- GPT-4o (multimodal) for image-to-text triple extraction
+- BioBERT for semantic embedding and similarity
+- Sentence-BERT + MeSH ontology for mechanistic classification
 
-### Methodology:
-- Extracts category-specific keywords from the **MeSH ontology**
-- Normalizes all terms and descriptions
-- Embeds both using **Sentence-BERT**
-- Matches based on **cosine similarity**
+---
 
-### Large File Notice
-This script depends on the **MeSH descriptor XML file**:  
-`desc2025.xml` (299MB)  
-This file contains the full set of descriptors from the U.S. National Library of Medicine's MeSH thesaurus. It is used to expand each category with synonyms and biomedical variants to improve semantic coverage.
+## Methodology Overview
 
-Due to its size, the file is **not included in this repository**. You must download it manually from the official source:
+### Step 1: Image Extraction and Filtering
+- Automated Google Images scraping
+- Relevance filtering via GPT-4o
+- Output: `Relevant_URLs_only_GPT_4o.xlsx`
 
-[Download desc2025.xml](https://nlmpubs.nlm.nih.gov/projects/mesh/MESH_FILES/xmlmesh/desc2025.xml)
+### Step 2: Triple Extraction from Biomedical Images
+- GPT-4o queried with standardized prompts
+- Output format: subject | predicate | object
+- Output: `Triples_Final_All_Relevant.csv`
 
-Place it in the following directory:
+### Step 3: Triple Evaluation (Gold Standard Comparison)
+- Uses BioBERT embeddings to compare GPT and CBM triples
+- Applies both semantic and lexical similarity thresholds
+- MeSH normalization improves robustness
+- Outputs: match statistics, cosine similarity distribution
+
+### Step 4: Mechanism Categorization
+- Uses Sentence-BERT embeddings and MeSH keyword expansion
+- Categories:
+  - Viral Entry and Neuroinvasion
+  - Immune and Inflammatory Response
+  - Neurodegenerative Mechanisms
+  - Vascular Effects
+  - Psychological and Neurological Symptoms
+  - Systemic Cross-Organ Effects
+- Fallback: GPT-4o assigns categories for ambiguous cases
+
+---
+
+## Repository Structure
+
 ```
-/data/MeSh_data/desc2025.xml
+SCAI_CODE/
+│
+├── data/
+│   ├── gold_standard_comparison/        ← Curated and predicted triples
+│   ├── images_CBM/                      ← Images used for CBM manual triple extraction
+│   ├── MeSh_data/                       ← MeSH XML & category/synonym outputs
+│   ├── URL_relevance_analysis/          ← URL relevance check results (GPT-4o and manual)
+│   └── triples_output/                  ← Extracted and categorized triples
+│
+├── notebooks/
+│   └── MeSH_Keyword_Extraction.ipynb    ← Keyword extraction & entity normalization
+│
+├── src/
+│   ├── Triple_Extraction_GPT4o.py
+│   ├── Gold_Standard_Comparison_BioBERT.py
+│   ├── Triples_Categorization.py
+│   ├── GPT4o_uncategorized_handling.py
+│   ├── Image_Enrichment_Analysis.py
+│   ├── URLs_Relevance_Check.py
+│   └── Hyperparameters_and_Prompt_Assessment.py
 ```
 
 ---
-## Fallback Categorization using GPT-4o
 
-**Script:** `GPT4o_uncategorized_handling.py`  
-To resolve previously *Uncategorized* triples (due to ambiguous or rare phrasing), we use GPT-4o as a semantic fallback. For each triple where the BERT + MeSH classifier fails, we send the **Pathophysiological Process** (PP) to GPT-4o with a structured prompt asking it to assign one of the six defined categories.
+## Outputs
 
-This fallback system outputs:
-- `Category_GPT`: The category predicted by GPT-4o
-- `Final_Category`: A merged field that keeps BERT's prediction (if available) or uses GPT's if not
+| File | Description |
+|------|-------------|
+| `Triples_Final_All_Relevant.csv/xlsx` | All extracted semantic triples |
+| `Triples_Final_All_Relevant_Categorized.xlsx` | BERT + MeSH categorized triples |
+| `Triples_Final_All_Relevant_Categorized_GPT4o.xlsx` | Finalized with GPT fallback |
+| `mesh_category_terms.json` | Category → MeSH keyword dictionary |
+| `mesh_triples_synonyms.json` | Triple term → normalized MeSH descriptor |
+| `Comparison_GPT_Manual_Relevance.xlsx` | Manual evaluation of GPT relevance |
 
-This hybrid approach improves recall and ensures a complete dataset for downstream graph-based or statistical analyses.
+---
 
-### How to Run:
+## How to Run (Pipeline)
+
 ```bash
-python src/GPT4o_uncategorized_handling.py \
-  --input data/triples_output/Triples_Final_All_Relevant_Categorized.xlsx \
-  --output data/triples_output/Triples_Final_All_Relevant_Categorized_GPT4o \
-  --api_key YOUR_API_KEY
+# Step 1: Extract biomedical image links
+python src/Image_Enrichment_Analysis.py   --query "Covid-19 and Neurodegeneration"   --main 100 --similar 100 --output_raw Enrichment_Search_URLs   --output_clean Enrichment_Cleaned --outdir ./data
+
+# Step 2: Relevance check (GPT-based)
+python src/URLs_Relevance_Check.py --input data/Enrichment_Search_URLs.xlsx --api_key YOUR_API_KEY
+
+# Step 3: Extract semantic triples
+python python src/Triple_Extraction_GPT4o.py --input data/Final_Relevant_URLs.xlsx --output_dir ./data/triples_output --api_key YOUR_API_KEY
+
+# Step 4: Compare to gold standard using BioBERT
+python src/Gold_Standard_Comparison_BioBERT.py   --gold data/gold_standard_comparison/Triples_CBM_Gold_Standard.xlsx   --eval data/gold_standard_comparison/Triples_GPT_for_comparison.xlsx
+
+# Step 5: Classify pathophysiological processes (BERT + MeSH)
+python src/Triples_Categorization.py   --input triples_output/Triples_Final_All_Relevant.csv   --output triples_output/Triples_Final_All_Relevant_Categorized   --mode pp
+
+# Step 6: Resolve uncategorized entries with GPT-4o
+python src/GPT4o_uncategorized_handling.py --input data/triples_output/Triples_Final_All_Relevant_Categorized.xlsx --output data/triples_output/Triples_Final_All_Relevant_Categorized_GPT4o --api_key YOUR_API_KEY
+```
+
+---
+
+## MeSH Integration
+
+This project uses:
+- `desc2025.xml`: official MeSH descriptor file from NLM
+- Keyword-based category matching (`mesh_category_terms.json`)
+- Entity-level synonym normalization (`mesh_triples_synonyms.json`)
+
+> [Download desc2025.xml](https://nlmpubs.nlm.nih.gov/projects/mesh/MESH_FILES/xmlmesh/desc2025.xml)  
+Place in: `/data/MeSh_data/desc2025.xml`
+
+---
+
+## Requirements
+
+```bash
+pip install -r requirements.txt
+```
+
+Key packages:
+- `openai`
+- `torch`
+- `pandas`, `numpy`
+- `sentence-transformers`
+- `transformers`
+- `openpyxl`, `matplotlib`, `imagehash`, `selenium`
 
 ---
 
@@ -90,79 +167,46 @@ export OPENAI_API_KEY=sk-...
 
 ---
 
-## Results & Outputs
-All major outputs are saved as `.xlsx` and `.csv` files under the `/data/` or `/triples_output/` directories:
-- `Relevant_URLs_only_GPT_4o.xlsx` – Final set of filtered relevant image URLs.
-- `Triples_Final_All_Relevant.csv/.xlsx` – Semantic triples extracted from figures.
-- `Triples_Final_All_Relevant_Categorized.xlsx/.csv` – Categorized mechanisms with BERT + MeSH.
-- `Triples_Final_All_Relevant_Categorized_GPT4o.xlsx/.csv` – Same as above but with previously uncategorized items resolved using GPT-4o.
-- `Supplementary_material_Table_1.xlsx` – Prompt and hyperparameter evaluations.
-- Evaluation metrics (CSS scores) from gold standard comparisons.
+## Citation
 
----
+> Please cite this work as:
 
-## Requirements
-- Python 3.8+
-- `sentence-transformers`
-- `torch`
-- `openai`
-- `pandas`
-- `numpy`
-- `requests`
-- `selenium`
-- `imagehash`
-- `openpyxl`
-
----
-
-## How to Run (Example)
-```bash
-# 1. Extract images from Google
-python src/Image_Enrichment_Analysis.py --query "Covid-19 and Neurodegeneration" --main 100 --similar 100 --output_raw Enrichment_Search_URLs --output_clean Enrichment_Cleaned --outdir ./data
-
-# 2. Check URL accessibility and relevance
-python src/URLs_Relevance_Check.py --input data/Enrichment_Cleaned.xlsx
-
-# 3. Extract semantic triples
-python src/Triple_Extraction_GPT4o.py --input data/Relevant_URLs_only_GPT_4o.xlsx --output_dir ./triples_output
-
-# 4. Categorize pathophysiological processes
-python src/Triples_Categorization.py --input triples_output/Triples_Final_All_Relevant.csv --output triples_output/Triples_Final_All_Relevant_Categorized --mode pp
-
-# 5. Resolve uncategorized entries using GPT-4o
-python src/GPT4o_uncategorized_handling.py --input triples_output/Triples_Final_All_Relevant_Categorized.xlsx --output triples_output/Triples_Final_All_Relevant_Categorized_GPT4o
-
-```
-
----
-
-## Data and Code Availability
-All source code and scripts are available in this repository:  
-🔗 [GitHub Repository Link — TBA upon publication]
-
-The annotated data, intermediate outputs, and supplementary results can be found under:
-```
-/data/
-/triples_output/
-```
-
-For reproducibility, the pipeline uses open-source tools and publicly available biomedical datasets.
 
 ---
 
 ## License
-This repository is licensed under the **MIT License**.
+
+This project is licensed under the [MIT License](LICENSE).
 
 ---
 
-## Citation
-To cite this work, please reference the corresponding article once published. A citation in BibTeX and DOI will be provided here.
+## Contact
+
+- **Elizaveta Popova**  
+  University of Bonn  
+  elizaveta.popova@uni-bonn.de  
+
+- **Negin Sadat Babaiha**  
+  Fraunhofer SCAI  
+  negin.babaiha@scai.fraunhofer.de  
 
 ---
 
-For questions or contributions, contact:
-**Elizaveta Popova** (University of Bonn) elizaveta.popova@uni-bonn.de
-**Negin Sadat Babaiha** (Fraunhofer SCAI) negin.babaiha@scai.fraunhofer.de 
+## Funding
+
+This research was supported by the 
+Grant ID: 
 
 ---
 
+## Reproducibility Checklist
+
+| Requirement | Status |
+|------------|--------|
+| Open-source code | Available |
+| Data files (intermediate and gold standard) | Included |
+| Prompt templates | In scripts |
+| Environment dependencies | `requirements.txt` |
+| External model APIs | GPT-4o via OpenAI API (key required) |
+
+---
