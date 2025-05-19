@@ -90,26 +90,26 @@ SCAI_CODE/
 | File | Description |
 |------|-------------|
 | **Triple Extraction** |
-| `Triples_Final_All_Relevant.csv/xlsx` | All semantic triples extracted from the full relevant image pool using GPT-4o |
-| `Triples_Final_comparison_with_CBM.csv/xlsx` | Subset of GPT triples corresponding to manually annotated (CBM) images |
-| `Triples_GPT_for_comparison.xlsx` | GPT triples for CBM-annotated images, with image-level mapping |
-| `Triples_GPT_for_comparison_SubjObj_Categorized.xlsx/csv` | Same as above, with subject/object classified into mechanistic categories |
+| `Triples_Final_All_Relevant.csv/xlsx` | All semantic triples extracted from the full image pool using GPT-4o |
+| `Triples_Final_comparison_with_CBM.csv/xlsx` | GPT triples for the subset of images manually annotated by CBM |
+| `Triples_GPT_for_comparison.xlsx` | GPT triples for CBM subset, with image-level mapping |
+| `Triples_GPT_for_comparison_SubjObj_Categorized.xlsx/csv` | Same as above, with MeSH-based subject/object category labels |
 
-| **Gold Standard (CBM Manual Annotations)** |
-| `Triples_CBM_Gold_Standard.xlsx` | Manually curated gold standard triples |
-| `Triples_CBM_Gold_Standard_SubjObj_Categorized.xlsx/csv` | CBM triples annotated with mechanistic categories (MeSH-guided) |
-| `Data_CBM.xlsx` | Metadata about the manually evaluated image set |
+| **Gold Standard (CBM Manual Annotation)** |
+| `Triples_CBM_Gold_Standard.xlsx` | Manually curated CBM triples |
+| `Triples_CBM_Gold_Standard_SubjObj_Categorized.xlsx/csv` | Same CBM triples with subject/object category annotation |
+| `Data_CBM.xlsx` | Image-level metadata for CBM-annotated subset |
 
 | **Categorization & Normalization** |
-| `Triples_Final_All_Relevant_Categorized.xlsx/csv` | All GPT triples classified using BERT + MeSH keywords |
-| `Triples_Final_All_Relevant_Categorized_GPT4o.xlsx/csv` | Final category-resolved triples with GPT fallback applied |
-| `mesh_category_terms.json` | MeSH-driven keyword dictionary for category assignment |
-| `mesh_triples_synonyms.json` | Triple term → normalized MeSH descriptor with synonyms |
+| `Triples_Final_All_Relevant_Categorized.xlsx/csv` | Categorized GPT triples via BERT + MeSH keyword matching |
+| `Triples_Final_All_Relevant_Categorized_GPT4o.xlsx/csv` | Final categorized triples after GPT-4o fallback |
+| `mesh_category_terms.json` | MeSH category → keyword mapping for classification |
+| `mesh_triples_synonyms.json` | Entity normalization: triple term → MeSH descriptor & synonyms |
 
 | **Evaluation & Relevance** |
-| `Comparison_GPT_Manual_Relevance.xlsx` | Manual human evaluation of GPT-extracted image captions |
-| `Relevant_URLs_only_GPT_4o.xlsx` | Final set of images deemed relevant by GPT-4o |
-| `Supplementary_material_Table_1.xlsx` | Prompt/hyperparameter tuning results across GPT variants |
+| `Comparison_GPT_Manual_Relevance.xlsx` | Manual evaluation of GPT caption relevance |
+| `Relevant_URLs_only_GPT_4o.xlsx` | Final image set filtered by GPT-4o relevance check |
+| `Supplementary_material_Table_1.xlsx` | Results from GPT prompt/hyperparameter tuning experiments |
 
 ---
 
