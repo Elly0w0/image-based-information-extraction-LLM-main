@@ -104,8 +104,8 @@ SCAI_CODE/
 | `mesh_category_terms.json` | MeSH category → keyword dictionary |
 | `mesh_triples_synonyms.json` | Triple term → normalized MeSH descriptor & synonyms |
 | **EVALUATION & RELEVANCE** |
-| `Comparison_GPT_Manual_Relevance.xlsx` | Manual evaluation of GPT-extracted captions |
-| `Relevant_URLs_only_GPT_4o.xlsx` | Final image set deemed relevant via GPT-4o |
+| `Comparison_GPT_Manual_Relevance.xlsx` | Manual evaluation of GPT-extracted triples |
+| `Relevant_URLs_only_GPT_4o.xlsx` | Final image set considered relevant by GPT-4o |
 | `Supplementary_material_Table_1.xlsx` | Results from GPT prompt & hyperparameter tuning |
 
 ---
