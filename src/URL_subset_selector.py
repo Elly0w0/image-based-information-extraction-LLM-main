@@ -25,7 +25,7 @@ import random
 import os
 
 # === File Paths ===
-cbm_metadata_path = "data/CBM_data/Data_CBM.xlsx"
+cbm_metadata_path = "data/CBM_data/Data_CBM_with_GitHub_URLs.xlsx"
 cbm_triples_path = "data/CBM_data/Triples_CBM_Gold_Standard.xlsx"
 output_urls_path = "data/prompt_engineering/cbm_files/CBM_subset_50_URLs.xlsx"
 output_triples_path = "data/prompt_engineering/cbm_files/CBM_subset_50_URL_triples.xlsx"
@@ -38,7 +38,7 @@ unique_urls = df_metadata['URL'].dropna().unique().tolist()
 sampled_urls = random.sample(unique_urls, 50)
 
 # === Get corresponding Image_number and URL ===
-df_subset_urls = df_metadata[df_metadata['URL'].isin(sampled_urls)][['Image_number', 'URL']].drop_duplicates()
+df_subset_urls = df_metadata[df_metadata['URL'].isin(sampled_urls)][['Image_number', 'URL', 'GitHub_URL']].drop_duplicates()
 
 # === Save subset of URLs ===
 os.makedirs(os.path.dirname(output_urls_path), exist_ok=True)
