@@ -72,6 +72,7 @@ def gpt_extract(client, url):
     """
     response = client.chat.completions.create(
     model="gpt-4o",
+
 ## Prompt_3
     # messages=[
     #   {
@@ -113,23 +114,15 @@ def gpt_extract(client, url):
       {
         "role": "user",
         "content": [
-          {"type": "text", "text": '''You are analyzing a scientific figure from a biomedical paper about COVID-19 and neurodegeneration.
-
-                                    1. Identify each distinct biological mechanism shown in the image.
-                                    2. For each mechanism, format the output exactly as follows:
-
-                                    Pathophysiological Process: <Mechanism_Name>
-                                    Triples:
-                                    <Entity_1>|<Predicate>|<Entity_2>
-
-                                    IMPORTANT RULES:
-                                    - Use ONLY the information in the image. DO NOT make assumptions or add text from outside the image.
-                                    - Output ONLY the structured format — no explanations, no bullet points, no additional text.
-                                    - Each triple must have exactly three elements, separated by the '|' character.
-                                    - Do NOT say "I am unable to analyze" — always attempt to extract some visual relationships.
-                                    - Skip any mechanism or relationship you are unsure about.
-                                    - Replace all spaces with underscores (e.g., “brain inflammation” → brain_inflammation).
-                                    - Do NOT include headings, summaries, comments, or any other output. '''},
+          {"type": "text", "text": '''Describe the image (Figure/Graphical abstract) from an article on comorbidity between COVID-19 and Neurodegeneration.   
+                                      1. Name potential mechanisms (pathophysiological processes) of Covid-19's impact on the brain depicted in the image. 
+                                      2. Describe each process depicted in the image as semantic triples (subject–predicate–object).  
+                                      Example: 
+                                      Pathophysiological Process: Astrocyte_Activation 
+                                      Triples:
+                                      SARS-CoV-2_infection|triggers|astrocyte_activation
+                                      
+                                      Use ONLY the information shown in the image! Follow the structure precisely and don't write anything else! Replace spaces in names with _ sign, make sure that words "Pathophysiology Process:" and "Triples:" are presented, don't use bold font and margins. Each triple must contain ONLY THREE elements separated by a | sign, four and more are not allowed!'''},
           {
             "type": "image_url",
             "image_url": {
@@ -140,8 +133,8 @@ def gpt_extract(client, url):
       }
     ],
     max_tokens=2000,
-    temperature=0.0,    #parameters    
-    top_p=0.0   #parameters
+    temperature=0.25,    #parameters    
+    top_p=0.25   #parameters
   )
     content = response.choices[0].message.content
     return content
@@ -153,17 +146,19 @@ def triples_extraction_from_urls(input_path, output_path_base, API_key):
     parsed_data = []
 
     for idx, row in df.iterrows():
-        url = row["URL"]
-        if not is_url_accessible(url):
-            print(f"❌ Skipping inaccessible URL: {url}")
+        image_number = row["Image_number"]
+        original_url = row["URL"]
+        github_url = row["GitHub_URL"]
+
+        if not is_url_accessible(github_url):
+            print(f"❌ Skipping inaccessible URL: {github_url}")
             continue
 
         try:
-            time.sleep(1.5)  # avoid rate-limiting or API timeout
-            content = gpt_extract(client, url)
-            print(f"\n{url}\n{content}")
+            time.sleep(1.5)
+            content = gpt_extract(client, github_url)
+            print(f"\n{github_url}\n{content}")
 
-            # Parse mechanisms
             mechanisms = content.strip().split('Pathophysiological Process: ')
             for mechanism_block in mechanisms[1:]:
                 lines = mechanism_block.strip().split('\n')
@@ -172,13 +167,16 @@ def triples_extraction_from_urls(input_path, output_path_base, API_key):
 
                 for triple in triples:
                     subject, predicate, obj = triple.strip().split('|')
-                    parsed_data.append([url, mechanism_name, subject, predicate, obj])
-
+                    parsed_data.append([image_number, original_url, github_url,
+                                        mechanism_name, subject, predicate, obj])
         except Exception as e:
-            print(f"⚠️ Error processing {url}: {e}")
+            print(f"⚠️ Error processing {github_url}: {e}")
             continue
 
-    parsed_df = pd.DataFrame(parsed_data, columns=['URL', 'Pathophysiological Process', 'Subject', 'Predicate', 'Object'])
+    parsed_df = pd.DataFrame(parsed_data, columns=[
+        'Image_number', 'URL', 'GitHub_URL',
+        'Pathophysiological Process', 'Subject', 'Predicate', 'Object'
+    ])
 
     os.makedirs(os.path.dirname(output_path_base), exist_ok=True)
     parsed_df.to_csv(f"{output_path_base}.csv", index=False)
@@ -191,7 +189,7 @@ if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser(description="Extract semantic triples from biomedical images using OpenAI GPT-4o.")
-    parser.add_argument("--input", required=True, help="Path to Excel file with image URLs (column name: 'URL').")
+    parser.add_argument("--input", required=True, help="Path to Excel file with image URLs (columns: 'Image_number', 'URL', 'GitHub_URL').")
     parser.add_argument("--output", required=True, help="Output file base path without extension.")
     parser.add_argument("--api_key", default=os.getenv("OPENAI_API_KEY"), help="OpenAI API key.")
 
@@ -202,6 +200,7 @@ if __name__ == "__main__":
 
     triples_extraction_from_urls(args.input, args.output, args.api_key)
 
-# python src/Triple_Extraction_GPT4o.py --input data/prompt_engineering/cbm_files/CBM_subset_50_URLs.xlsx --output data/gpt_files/GPT_subset_triples_prompt1_param00 --api_key YOUR_API_KEY
-
-# python src/Triple_Extraction_GPT4o.py --input data\CBM_data\Data_CBM_with_GitHub_URLs.xlsx --output data/gpt_files/test --api_key YOUR_API_KEY
+# python src/Triple_Extraction_GPT4o.py --input data/prompt_engineering/cbm_files/CBM_subset_50_URLs.xlsx --output data/prompt_engineering/gpt_files/GPT_subset_triples_prompt1_param00 --api_key YOUR_API_KEY
+# python src/Triple_Extraction_GPT4o.py --input data/prompt_engineering/cbm_files/CBM_subset_50_URLs.xlsx --output data/prompt_engineering/gpt_files/GPT_subset_triples_prompt2_param00 --api_key YOUR_API_KEY
+# python src/Triple_Extraction_GPT4o.py --input data/prompt_engineering/cbm_files/CBM_subset_50_URLs.xlsx --output data/prompt_engineering/gpt_files/GPT_subset_triples_prompt3_param00 --api_key YOUR_API_KEY
+# python src/Triple_Extraction_GPT4o.py --input data/prompt_engineering/cbm_files/CBM_subset_50_URLs.xlsx --output data/prompt_engineering/gpt_files/GPT_subset_triples_prompt1_param0_25 --api_key YOUR_API_KEY
