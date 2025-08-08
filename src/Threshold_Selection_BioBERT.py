@@ -135,6 +135,7 @@ def evaluate_thresholds(gold_path, eval_path):
 
     thresholds = [0.70, 0.75, 0.80, 0.85, 0.90]
     results = []
+    all_records = []  # store for saving once
 
     output_dir = "data/figures_output"
     os.makedirs(output_dir, exist_ok=True)
@@ -143,17 +144,25 @@ def evaluate_thresholds(gold_path, eval_path):
     for threshold in thresholds:
         print(f"\n--- Threshold: {threshold:.2f} ---")
         TP, FP, FN, records = compare_full_triples(gold_dict, eval_dict, threshold)
+
+        # store only once — first run will have the same records as others
+        if not all_records:
+            all_records = records
+
         precision = TP / (TP + FP) if (TP + FP) else 0
         recall = TP / (TP + FN) if (TP + FN) else 0
         f1 = 2 * precision * recall / (precision + recall) if (precision + recall) else 0
         results.append((threshold, precision, recall, f1))
 
-        df_records = pd.DataFrame(records)
-        df_records.to_excel(f"data/threshold_evaluation_files/Similarity_Report_Threshold_{int(threshold*100)}.xlsx", index=False)
-
         print(f"\nThreshold: {threshold:.2f} | Precision: {precision:.3f} | Recall: {recall:.3f} | F1: {f1:.3f}")
 
-    # Plot Results
+    # Save one Excel file with all similarity comparisons
+    pd.DataFrame(all_records).to_excel(
+        "data/prompt_engineering/statistical_data/Similarity_Threshold_Report.xlsx",
+        index=False
+    )
+
+    # Plot results
     thresholds, precisions, recalls, f1s = zip(*results)
     plt.figure(figsize=(7, 5), dpi=600)
     plt.plot(thresholds, f1s, marker='o', label='F1 Score', linewidth=2)
