@@ -373,7 +373,7 @@ This project is licensed under the [MIT License](LICENSE).
 
 ## Funding
 
-This research was supported by the Bonn-Aachen International Center for Information Technology (b-it) foundation, Bonn, Germany, and Fraunhofer Institute for Algorithms and Scientific Computing (SCAI). Additional financial support was provided through the COMMUTE project, which receives funding from the European Union under Grant Agreement No. 101136957.
+
 
 ---
 
