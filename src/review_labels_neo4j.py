@@ -26,6 +26,7 @@ import sys
 import time
 import logging
 import configparser
+from pathlib import Path
 
 from neo4j import GraphDatabase, basic_auth
 from openai import OpenAI
@@ -92,7 +93,7 @@ def review_label(client: OpenAI, entity: str, current_label: str) -> str:
 
     try:
         resp = client.chat.completions.create(
-            model="gpt-4.1",
+            model="gpt-4o",
             messages=[
                 {"role": "system", "content": "You classify biological entities."},
                 {"role": "user",   "content": prompt}
@@ -108,50 +109,42 @@ def review_label(client: OpenAI, entity: str, current_label: str) -> str:
         return current_label
 
 def main():
-    """
-    Main routine to:
-    1. Load configuration credentials from config.ini.
-    2. Initialize OpenAI and Neo4j clients.
-    3. Retrieve all Neo4j nodes with a 'name' property.
-    4. For each node, use GPT to evaluate and potentially update its semantic label.
-    5. Apply updates directly to the graph database.
-    """
     logging.info("Starting review_labels_neo4j...")
-    # 1) Load and validate config.ini
+
+    # --- Check for config.ini explicitly ---
+    config_path = Path("config.ini")
+    if not config_path.is_file():
+        print(f"config.ini not found at {config_path.resolve()}")
+        sys.exit(1)
+
     cfg = configparser.ConfigParser()
     try:
-        loaded = cfg.read("config.ini")
-        if not loaded:
-            raise FileNotFoundError("config.ini not found or could not be parsed")
-    except FileNotFoundError as e:
-        logging.error(str(e))
-        sys.exit(1)
+        with config_path.open("r", encoding="utf-8") as f:
+            cfg.read_file(f)
     except Exception as e:
-        logging.exception("Unexpected error while loading config.ini")
+        print(f"Failed to read config.ini: {e}")
         sys.exit(1)
 
-
-    # Validate required sections
+    # Validate required sections and keys
     for section in ("neo4j", "openai"):
         if section not in cfg:
-            logging.error(f"Missing section [{section}] in config.ini")
+            print(f"Missing section [{section}] in config.ini")
             sys.exit(1)
 
     neo4j_conf = cfg["neo4j"]
     openai_conf = cfg["openai"]
+
     uri      = neo4j_conf.get("uri")
     user     = neo4j_conf.get("user")
     password = neo4j_conf.get("password")
     api_key  = openai_conf.get("api_key")
 
     if not all([uri, user, password, api_key]):
-        logging.error("One or more credentials are missing in config.ini")
+        print("One or more credentials are missing in config.ini")
         sys.exit(1)
 
-    # 2) Initialize the OpenAI client
+    # Initialize clients
     client = OpenAI(api_key=api_key)
-
-    # 3) Connect to Neo4j
     try:
         driver = GraphDatabase.driver(uri, auth=basic_auth(user, password))
     except Exception:
@@ -161,9 +154,8 @@ def main():
     try:
         with driver.session() as session:
             query = (
-                "MATCH (n)"
-                " WHERE n.name IS NOT NULL"
-                " RETURN id(n) AS id, n.name AS entity, labels(n) AS labels"
+                "MATCH (n) WHERE n.name IS NOT NULL "
+                "RETURN id(n) AS id, n.name AS entity, labels(n) AS labels"
             )
             try:
                 results = list(session.run(query))
@@ -179,10 +171,12 @@ def main():
                     current = next((L for L in labs if L in CONTROLLED_VOCAB), "")
 
                     new_label = review_label(client, ent, current)
+
                     if new_label != current:
                         remove_unknown = "REMOVE n:`Unknown`" if "Unknown" in labs else ""
                         remove_current = f"REMOVE n:`{current}`" if current else ""
                         add_clause     = f"SET n:`{new_label}`"
+
                         update_cypher = f"""
                             MATCH (n)
                             WHERE id(n) = $id
