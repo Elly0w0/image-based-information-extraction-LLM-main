@@ -146,7 +146,7 @@ SCAI-BIO/covid-NDD-image-based-information-extraction/
 │   ├── GPT4o_uncategorized_handling.py
 │   ├── neo4j_upload.py
 │   ├── neo4j_upload_fulltext.py
-│   └── gpt4o-correct-neo4j-labels-nodes.py
+│   └── review_labels_neo4j.py
 ```
 
 ---
@@ -268,15 +268,18 @@ python src/GPT4o_uncategorized_handling.py \
     --api_key YOUR_API_KEY
 
 # Step 13: Upload image-derived triples to Neo4j
-python src/neo4j_upload.py \
-    --cbm data/gold_standard_comparison/Triples_CBM_Gold_Standard_cleaned.csv \
-    --gpt data/gold_standard_comparison/Triples_GPT_for_comparison.csv
+python python src/neo4j_upload.py \
+--cbm data/gold_standard_comparison/Triples_CBM_Gold_Standard_cleaned.csv \
+--gpt data/gold_standard_comparison/Triples_GPT_for_comparison.csv \
+--password YOUR_Neo4j_PASSWORD
 
 # Step 14: Upload full-text-derived triples to Neo4j
-python src/neo4j_upload_fulltext.py
+python src/neo4j_upload_fulltext.py \
+    --input data/gold_standard_comparison/Triples_Full_Text_GPT_for_comp_cleaned.csv \
+    --password YOUR_Neo4j_PASSWORD
 
 # Step 15 (Optional): Review and correct Neo4j node labels using GPT
-python src/gpt4o-correct-neo4j-labels-nodes.py
+python src/review_labels_neo4j.py
 ```
 
 ---
@@ -372,8 +375,6 @@ This project is licensed under the [MIT License](LICENSE).
 ---
 
 ## Funding
-
-This research was supported by the Bonn-Aachen International Center for Information Technology (b-it) foundation, Bonn, Germany, and Fraunhofer Institute for Algorithms and Scientific Computing (SCAI). Additional financial support was provided through the COMMUTE project, which receives funding from the European Union under Grant Agreement No. 101136957.
 
 ---
 
