@@ -139,7 +139,7 @@ if __name__ == "__main__":
     plt.xticks(x, df_stats["Setting"], rotation=30, ha='right')
     plt.ylabel("Score")
     plt.ylim(0, 1)
-    plt.title("Hyperparameter Comparison via BioBERT Triple Matching (Threshold 0.85)")
+    #plt.title("Hyperparameter Comparison via BioBERT Triple Matching (Threshold 0.85)")
     plt.legend(loc='upper left', bbox_to_anchor=(1.02, 1), borderaxespad=0)
     plt.grid(axis='y', linestyle='--', alpha=0.6)
     plt.tight_layout()
