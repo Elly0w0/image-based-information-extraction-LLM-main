@@ -115,6 +115,8 @@ Outputs:
 
 ```
 SCAI-BIO/covid-NDD-image-based-information-extraction/
+├── config/
+│   ├── config.ini                       ← Stores Neo4j connection credentials and the OpenAI API key.
 │
 ├── data/
 │   ├── CBM_data/                        ← Data for CBM manual curation; triples extracted by CBM; full-text papers of the CBM images.

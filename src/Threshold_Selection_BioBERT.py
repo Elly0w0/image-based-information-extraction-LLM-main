@@ -170,7 +170,7 @@ def evaluate_thresholds(gold_path, eval_path):
     plt.plot(thresholds, recalls, marker='^', linestyle='--', label='Recall')
     plt.xlabel("Semantic Similarity Threshold (Full Triple)", fontsize=12)
     plt.ylabel("Score", fontsize=12)
-    plt.title("Threshold vs. Precision / Recall / F1", fontsize=13)
+    #plt.title("Threshold vs. Precision / Recall / F1", fontsize=13)
     plt.legend()
     plt.grid(True, linestyle='--', alpha=0.7)
     plt.xticks(thresholds)

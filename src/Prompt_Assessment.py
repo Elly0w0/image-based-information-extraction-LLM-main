@@ -142,7 +142,7 @@ if __name__ == "__main__":
     plt.xticks(x, df_stats["Prompt"], fontsize=10)
     plt.ylabel("Score", fontsize=11)
     plt.ylim(0, 1)
-    plt.title("Prompt Comparison via BioBERT Triple Matching (Threshold 0.85)", fontsize=12)
+    #plt.title("Prompt Comparison via BioBERT Triple Matching (Threshold 0.85)", fontsize=12)
     plt.legend()
     plt.grid(axis='y', linestyle='--', alpha=0.5)
 

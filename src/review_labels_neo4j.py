@@ -7,21 +7,28 @@ Institution: University of Bonn, Fraunhofer SCAI
 Date: 06/08/2025
 
 Description:
-    This script connects to a Neo4j database, reads all nodes with a `name` property,
-    and uses the OpenAI GPT API to verify or correct each node’s semantic label based
-    on a controlled vocabulary. The model is prompted to select the most appropriate label 
-    for each entity from a predefined list (e.g., Gene, Disease, Protein, etc.).
+    Connects to a Neo4j database, reads nodes with a `name` property, and uses the OpenAI GPT API
+    to verify or correct each node’s semantic label based on a controlled vocabulary.
 
-    If the model suggests a new label that differs from the current one, the script
-    updates the node in Neo4j by removing the old label and assigning the new one.
-    Labels are evaluated for consistency using a deterministic GPT prompt, and nodes 
-    with the label “Unknown” are also reconsidered.
+    Minimal-tweak version:
+      - Removes the log filter that previously hid most output
+      - Adds progress logs: fetched count, sample entities, progress heartbeat, final summary
 
-    All credentials are securely loaded from a local `config.ini` file.
+Requirements:
+    config/config.ini — must contain the following sections:
 
+    [neo4j]
+    uri = bolt://localhost:7687
+    user = neo4j
+    password = your_password_here
+
+    [openai]
+    api_key = your_openai_api_key_here
+      
 Usage:
     python src/review_labels_neo4j.py
 """
+
 import sys
 import time
 import logging
@@ -31,23 +38,18 @@ from pathlib import Path
 from neo4j import GraphDatabase, basic_auth
 from openai import OpenAI
 
-# Configure logging to INFO (so DEBUG is suppressed)...
+# ----------------------------
+# Logging (INFO level, verbose)
+# ----------------------------
 logging.basicConfig(
     level=logging.INFO,
     format="[%(levelname)s] %(asctime)s - %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S"
 )
 
-# ...then add a filter so only our two markers get through:
-class OnlyUpdateUnchangedFilter(logging.Filter):
-    def filter(self, record):
-        msg = record.getMessage()
-        return msg.startswith("[UPDATED]") or msg.startswith("[UNCHANGED]")
-
-for handler in logging.root.handlers:
-    handler.addFilter(OnlyUpdateUnchangedFilter())
-
-# Controlled vocabulary of allowed labels
+# ----------------------------
+# Controlled vocabulary
+# ----------------------------
 CONTROLLED_VOCAB = [
     "Anatomical_Structure",
     "Biological_Process",
@@ -66,29 +68,26 @@ def review_label(client: OpenAI, entity: str, current_label: str) -> str:
     Use the OpenAI GPT API to verify or correct the semantic label of a given entity.
 
     Args:
-        client (OpenAI): An initialized OpenAI API client.
+        client (OpenAI): Initialized OpenAI API client.
         entity (str): The name of the biological entity to classify.
         current_label (str): The entity's current label in the Neo4j database.
 
     Returns:
         str: The most appropriate label, either unchanged or corrected, based on GPT output.
     """
-    logging.debug(f"Reviewing label for entity='{entity}', current_label='{current_label}'")
     prompt = (
         "You are a biomedical ontology expert. Your task is to verify or correct the label for a biological entity.\n\n"
         f"Entity: \"{entity}\"\n"
         f"Current Label: \"{current_label}\"\n\n"
-        "Choose the **single most appropriate label** from the following controlled vocabulary:\n"
+        "Choose the single most appropriate label from the following controlled vocabulary:\n"
         f"{', '.join(CONTROLLED_VOCAB)}\n\n"
         "Rules:\n"
-        "- Only return **one label**, as a plain string (e.g., `Gene` or `Phenotype`).\n"
-        "- Do **not** include punctuation, quotes, extra words, or explanations.\n"
+        "- Return only ONE label as plain text (e.g., Gene, Disease).\n"
+        "- Do not include punctuation, quotes, extra words, or explanations.\n"
         "- Return the current label exactly as-is if it is already correct.\n"
-        "- If none of the labels apply, return a **single new label** that best describes the entity.\n"
-        "- The output must be **only the label name** — no commentary, no formatting.\n\n"
-        "- If the entity current label is Unknown, choose the most semantically suitable label — avoid 'Unknown"
-        "Output:\n"
-        "The label string only."
+        "- If none apply, return a single new label that best describes the entity.\n"
+        "- If the current label is Unknown, choose the most suitable label; avoid 'Unknown'.\n\n"
+        "Output: The label string only."
     )
 
     try:
@@ -101,9 +100,8 @@ def review_label(client: OpenAI, entity: str, current_label: str) -> str:
             temperature=0.0,
             max_tokens=20
         )
-        new_label = resp.choices[0].message.content.strip() or current_label
-        logging.debug(f"GPT returned new_label='{new_label}' for entity='{entity}'")
-        return new_label
+        new_label = (resp.choices[0].message.content or "").strip()
+        return new_label or current_label
     except Exception:
         logging.exception(f"GPT API error for entity='{entity}'")
         return current_label
@@ -111,10 +109,12 @@ def review_label(client: OpenAI, entity: str, current_label: str) -> str:
 def main():
     logging.info("Starting review_labels_neo4j...")
 
-    # --- Check for config.ini explicitly ---
-    config_path = Path("config.ini")
+    # ----------------------------
+    # Read config.ini (fixed path)
+    # ----------------------------
+    config_path = Path("config/config.ini").resolve()
     if not config_path.is_file():
-        print(f"config.ini not found at {config_path.resolve()}")
+        logging.error(f"config.ini not found at {config_path}")
         sys.exit(1)
 
     cfg = configparser.ConfigParser()
@@ -122,13 +122,13 @@ def main():
         with config_path.open("r", encoding="utf-8") as f:
             cfg.read_file(f)
     except Exception as e:
-        print(f"Failed to read config.ini: {e}")
+        logging.error(f"Failed to read config.ini: {e}")
         sys.exit(1)
 
     # Validate required sections and keys
     for section in ("neo4j", "openai"):
         if section not in cfg:
-            print(f"Missing section [{section}] in config.ini")
+            logging.error(f"Missing section [{section}] in config.ini")
             sys.exit(1)
 
     neo4j_conf = cfg["neo4j"]
@@ -140,16 +140,22 @@ def main():
     api_key  = openai_conf.get("api_key")
 
     if not all([uri, user, password, api_key]):
-        print("One or more credentials are missing in config.ini")
+        logging.error("One or more credentials are missing in config.ini")
         sys.exit(1)
 
+    # ----------------------------
     # Initialize clients
+    # ----------------------------
+    logging.info("Connecting to OpenAI and Neo4j...")
     client = OpenAI(api_key=api_key)
     try:
         driver = GraphDatabase.driver(uri, auth=basic_auth(user, password))
     except Exception:
         logging.exception("Failed to connect to Neo4j")
         sys.exit(1)
+
+    updated = 0
+    unchanged = 0
 
     try:
         with driver.session() as session:
@@ -163,16 +169,24 @@ def main():
                 logging.exception("Cypher query failed")
                 return
 
+            total = len(results)
+            logging.info(f"Fetched {total} nodes with a 'name' property.")
+            if total > 0:
+                preview = [r["entity"] for r in results[:5]]
+                logging.info(f"Sample entities: {preview}")
+
             for i, rec in enumerate(results, start=1):
                 try:
                     nid     = rec["id"]
                     ent     = rec["entity"]
                     labs    = rec["labels"]
-                    current = next((L for L in labs if L in CONTROLLED_VOCAB), "")
 
+                    # Pick the first known label from CONTROLLED_VOCAB if any
+                    current = next((L for L in labs if L in CONTROLLED_VOCAB), "")
                     new_label = review_label(client, ent, current)
 
                     if new_label != current:
+                        # Build Cypher parts
                         remove_unknown = "REMOVE n:`Unknown`" if "Unknown" in labs else ""
                         remove_current = f"REMOVE n:`{current}`" if current else ""
                         add_clause     = f"SET n:`{new_label}`"
@@ -185,16 +199,24 @@ def main():
                             {add_clause}
                         """
                         session.run(update_cypher, id=nid)
+                        updated += 1
                         logging.info(f"[UPDATED] '{ent}': {current or '<none>'} → {new_label}")
                     else:
-                        logging.info(f"[UNCHANGED] '{ent}' remains '{current}'")
+                        unchanged += 1
+                        logging.info(f"[UNCHANGED] '{ent}' remains '{current or '<none>'}")
 
                 except Exception:
-                    logging.exception(f"Error processing record {i}")
+                    logging.exception(f"Error processing record #{i}")
                 finally:
+                    # Heartbeat
+                    if i % 50 == 0 or i == total:
+                        logging.info(f"Progress: {i}/{total} nodes processed...")
                     time.sleep(0.2)
+
     finally:
         driver.close()
+
+    logging.info(f"Summary: UPDATED={updated}, UNCHANGED={unchanged}, TOTAL={updated + unchanged}")
 
 if __name__ == "__main__":
     main()
