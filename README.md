@@ -129,6 +129,7 @@ SCAI-BIO/covid-NDD-image-based-information-extraction/
 │        └── gpt_files/                  ← GPT-extracted triple files for the same 50 URL subset
 │        └── statistical_data/           ← Statistical data and log files accompanying plots for prompt and hyperparameters assessment
 │   ├── MeSh_data/                       ← MeSH XML & category/synonym outputs
+│   ├── neo4j_queries/                   ← Files containing Neo4j queries used in this work
 │   ├── prompt_templates/                ← Files in .txt format containing prompts used in this work
 │   ├── URL_relevance_analysis/          ← URL relevance check results (GPT-4o and manual)
 │   └── triples_output/                  ← Extracted and categorized triples
@@ -198,7 +199,7 @@ SCAI-BIO/covid-NDD-image-based-information-extraction/
 | `Relevance_assignment_GPT_4o.xlsx` | The full URL list with relevance labels assigned by GPT-4o |
 | `URL_relevance_final_manual_check.xlsx` | Manual relevance assessment of the URLs considered relevant by GPT-4o |
 | **data** |
-| `Supplementary_material_S3_Table.xlsx` | Results from GPT prompt & hyperparameter tuning |
+| `Supplementary_material_S4_Table.xlsx` | Results from GPT prompt & hyperparameter tuning |
 | `neo4j.dump` | The final graph to be open in neo4j |
 
 ---
