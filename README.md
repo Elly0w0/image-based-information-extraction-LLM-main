@@ -130,6 +130,9 @@ SCAI-BIO/covid-NDD-image-based-information-extraction/
 │        └── statistical_data/           ← Statistical data and log files accompanying plots for prompt and hyperparameters assessment
 │   ├── MeSh_data/                       ← MeSH XML & category/synonym outputs
 │   ├── neo4j_queries/                   ← Files containing Neo4j queries used in this work
+│   ├── bio_insights/                    ← Biological insights from the neo4j data
+│        └── neo4j_results/              ← Files containing results of the neo4j queries
+│        └── outputs/                    ← Figures and .csv files summarizing bioligical analysis
 │   ├── prompt_templates/                ← Files in .txt format containing prompts used in this work
 │   ├── URL_relevance_analysis/          ← URL relevance check results (GPT-4o and manual)
 │   └── triples_output/                  ← Extracted and categorized triples
@@ -149,7 +152,8 @@ SCAI-BIO/covid-NDD-image-based-information-extraction/
 │   ├── GPT4o_uncategorized_handling.py
 │   ├── neo4j_upload.py
 │   ├── neo4j_upload_fulltext.py
-│   └── review_labels_neo4j.py
+│   ├── review_labels_neo4j.py
+│   └── bio_insights.py
 ```
 
 ---
@@ -283,6 +287,17 @@ python src/neo4j_upload_fulltext.py \
 
 # Step 15 (Optional): Review and correct Neo4j node labels using GPT
 python src/review_labels_neo4j.py
+
+# Step 16: Get the biological insights from the neo4j data 
+python python src/bio_insights.py \
+        --input-dir data/bio_insights/neo4j_results \
+        --output-dir data/bio_insights/outputs \
+        --top-n 20 \
+        --run-neo4j \
+        --neo4j-uri neo4j://127.0.0.1:7687 \
+        --neo4j-user neo4j \
+        --neo4j-password YOUR_PASSWORD \
+        --neo4j-db neo4j
 ```
 
 ---
