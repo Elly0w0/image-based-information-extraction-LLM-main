@@ -79,6 +79,12 @@ except Exception:
     GraphDatabase = None
     nx = None
 
+# ---- Consistent color palette across all figures ----
+PALETTE = {
+    "CBM": "#3274a1",        # blue
+    "GPT": "#e1812c",        # orange
+    "GPT-fulltext": "#3a923a" # green
+}
 
 # ----------------------------- Helpers ---------------------------------
 
@@ -127,11 +133,16 @@ def make_hbar(df: pd.DataFrame, title: str, outfile_png: Path, top_n: int, dpi: 
 
     plt.figure(figsize=(9, max(4, 0.45 * len(d))), dpi=dpi)
 
-    # Stacks (fixed order for consistency)
-    plt.barh(d["name_short"], d["deg_gpt"],           label="GPT",          edgecolor="black", linewidth=0.3)
-    plt.barh(d["name_short"], d["deg_cbm"],           label="CBM",          left=d["deg_gpt"], edgecolor="black", linewidth=0.3)
-    plt.barh(d["name_short"], d["deg_gpt_fulltext"],  label="GPT-fulltext", left=d["deg_gpt"] + d["deg_cbm"],
-             edgecolor="black", linewidth=0.3)
+    plt.barh(d["name_short"], d["deg_cbm"],
+            label="CBM", color=PALETTE["CBM"],
+            left=d["deg_gpt"], edgecolor="black", linewidth=0.3)
+
+    plt.barh(d["name_short"], d["deg_gpt"],
+         label="GPT (images)", color=PALETTE["GPT"], edgecolor="black", linewidth=0.3)
+
+    plt.barh(d["name_short"], d["deg_gpt_fulltext"],
+            label="GPT-fulltext", color=PALETTE["GPT-fulltext"],
+            left=d["deg_gpt"] + d["deg_cbm"], edgecolor="black", linewidth=0.3)
 
     max_val = d["deg_total"].max()
     plt.xlim(0, max_val * 1.1)
@@ -163,17 +174,17 @@ def figure_shared_and_cytokine_hubs(input_dir: Path, output_dir: Path, top_n: in
     top_q1a = make_hbar(
         q1a_std,
         title=textwrap.fill(
-            "Shared hubs within 2 hops of both COVID and NDD",
+            "Shared Hubs Within 2 Hops of Both COVID and NDD",
             width=60
         ),
-        outfile_png=output_dir / "Fig_shared_hubs.png",
+        outfile_png=output_dir / "Fig_shared_hubs.tiff",
         top_n=top_n, dpi=dpi,
     )
 
     top_q1b = make_hbar(
         q1b_std,
-        title="Cytokine/chemokine hubs near both COVID and NDD (degree split by source)",
-        outfile_png=output_dir / "Fig_cytokine_hubs.png",
+        title="Cytokine/Chemokine Hubs Near Both COVID and NDD (degree split by source)",
+        outfile_png=output_dir / "Fig_cytokine_hubs.tiff",
         top_n=top_n, dpi=dpi,
     )
 
@@ -202,18 +213,21 @@ def figure_bbb_mediators_and_glia_neighbors(input_dir: Path, output_dir: Path, d
 
     y = np.arange(len(a2_sorted))
     plt.figure(figsize=(8, 6), dpi=dpi)
-    plt.barh(y, a2_sorted["cbm_edges_on_paths"], label="CBM edges")
+    # BBB mediators
+    plt.barh(y, a2_sorted["cbm_edges_on_paths"], label="CBM edges", color=PALETTE["CBM"])
     plt.barh(y, a2_sorted["gpt_edges_on_paths"],
-             left=a2_sorted["cbm_edges_on_paths"], label="GPT edges", alpha=0.7)
+         left=a2_sorted["cbm_edges_on_paths"], label="GPT edges", color=PALETTE["GPT"], alpha=0.85)
+
     plt.yticks(y, a2_sorted["mediator"])
     plt.xlabel("Edges on COVID↔BBB paths")
-    plt.title("Top mediators on COVID↔BBB paths")
+    plt.title("Top Mediators on COVID↔BBB Paths")
     plt.legend()
     plt.gca().invert_yaxis()
     xmax = (a2_sorted["cbm_edges_on_paths"] + a2_sorted["gpt_edges_on_paths"]).max()
     plt.xlim(0, xmax * 1.1)
     plt.tight_layout()
     plt.savefig(output_dir / "BBB_mediators_top10.png", dpi=dpi)
+    plt.savefig(output_dir / "BBB_mediators_top10.tiff", dpi=dpi)
     plt.close()
 
     # Astrocyte neighbors
@@ -240,17 +254,20 @@ def figure_bbb_mediators_and_glia_neighbors(input_dir: Path, output_dir: Path, d
 
     y = np.arange(len(b1_sorted))
     plt.figure(figsize=(9, 7), dpi=dpi)
-    plt.barh(y, b1_sorted["edges_cbm"], label="CBM edges")
-    plt.barh(y, b1_sorted["edges_gpt"], left=b1_sorted["edges_cbm"], label="GPT edges", alpha=0.7)
+    # Astrocyte neighbors
+    plt.barh(y, b1_sorted["edges_cbm"], label="CBM edges", color=PALETTE["CBM"])
+    plt.barh(y, b1_sorted["edges_gpt"],
+         left=b1_sorted["edges_cbm"], label="GPT edges", color=PALETTE["GPT"], alpha=0.85)
     plt.yticks(y, b1_sorted[name_col])
     plt.xlabel("Number of edges")
-    plt.title("Top neighbors of ASTROCYTE ACTIVATION", wrap=True)
+    plt.title("Top Neighbors of ASTROCYTE ACTIVATION", wrap=True)
     plt.legend()
     plt.gca().invert_yaxis()
     xmax = (b1_sorted["edges_cbm"] + b1_sorted["edges_gpt"]).max()
     plt.xlim(0, xmax * 1.1)
     plt.tight_layout()
     plt.savefig(output_dir / "Astrocyte_neighbors_top15_noCOVID.png", dpi=dpi)
+    plt.savefig(output_dir / "Astrocyte_neighbors_top15_noCOVID.tiff", dpi=dpi)
     plt.close()
 
 
