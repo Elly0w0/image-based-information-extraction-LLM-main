@@ -129,7 +129,7 @@ SCAI-BIO/covid-NDD-image-based-information-extraction/
 │        └── gpt_files/                  ← GPT-extracted triple files for the same 50 URL subset
 │        └── statistical_data/           ← Statistical data and log files accompanying plots for prompt and hyperparameters assessment
 │   ├── MeSh_data/                       ← MeSH XML & category/synonym outputs
-│   ├── neo4j_queries/                   ← Files containing Neo4j queries used in this work
+│   ├── neo4j_queries/                   ← Files containing Neo4j queries used in this work for comparisons
 │   ├── bio_insights/                    ← Biological insights from the neo4j data
 │        └── neo4j_results/              ← Files containing results of the neo4j queries
 │        └── outputs/                    ← Figures and .csv files summarizing bioligical analysis
@@ -158,7 +158,7 @@ SCAI-BIO/covid-NDD-image-based-information-extraction/
 
 ---
 
-## Outputs
+## Important Files and Descriptions
 
 | File | Description |
 |------|-------------|
@@ -202,6 +202,8 @@ SCAI-BIO/covid-NDD-image-based-information-extraction/
 | `Final_Relevant_URLs.xlsx` | The final list of the relevant URLs |
 | `Relevance_assignment_GPT_4o.xlsx` | The full URL list with relevance labels assigned by GPT-4o |
 | `URL_relevance_final_manual_check.xlsx` | Manual relevance assessment of the URLs considered relevant by GPT-4o |
+| **bio_insights** |
+| `bio_insights_with_neo4j_queries.docx` | Biological findings, figures and neo4j queries used |
 | **data** |
 | `Supplementary_material_S4_Table.xlsx` | Results from GPT prompt & hyperparameter tuning |
 | `neo4j.dump` | The final graph to be open in neo4j |
@@ -393,6 +395,8 @@ This project is licensed under the [MIT License](LICENSE).
 ---
 
 ## Funding
+
+This research was supported by the Bonn-Aachen International Center for Information Technology (b-it) foundation, Bonn, Germany, and Fraunhofer Institute for Algorithms and Scientific Computing (SCAI). Additional financial support was provided through the COMMUTE project, which receives funding from the European Union under Grant Agreement No. 101136957. 
 
 ---
 
