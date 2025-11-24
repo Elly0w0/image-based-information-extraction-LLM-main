@@ -167,7 +167,7 @@ def evaluate_images(df_gold, df_eval, threshold=0.85):
     plt.savefig("data/figures_output/Fig_FullTriple_Semantic.tiff", dpi=600)
     plt.close()
 
-    # === Save log ===
+    # # === Save log ===
     out_dir = "data/gold_standard_comparison"
     os.makedirs(out_dir, exist_ok=True)
     threshold_str = str(int(threshold * 100))
@@ -190,3 +190,7 @@ if __name__ == "__main__":
 
 
 # python src/Gold_Standard_Comparison_BioBERT.py --gold data/gold_standard_comparison/Triples_CBM_Gold_Standard.xlsx --eval data/gold_standard_comparison/Triples_GPT_for_comparison.xlsx
+
+# python src/Gold_Standard_Comparison_BioBERT.py --gold data/baselines_and_ablations/CBM_subset_50_URL_triples.xlsx --eval data/baselines_and_ablations/GPT_subset_triples_prompt1_param0_0.xlsx
+# python src/Gold_Standard_Comparison_BioBERT.py --gold data/baselines_and_ablations/CBM_subset_50_URL_triples.xlsx --eval data/baselines_and_ablations/rule_based_subset_50_URLs_triples.xlsx
+# python src/Gold_Standard_Comparison_BioBERT.py --gold data/baselines_and_ablations/CBM_subset_50_URL_triples.xlsx --eval data/baselines_and_ablations/GPT_subset_50_URLs_with_captions_triples.xlsx

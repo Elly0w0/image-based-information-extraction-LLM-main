@@ -42,6 +42,7 @@ Usage:
     Run Subject+Object-based classification:
         python src/Triples_Categorization.py --input data/gold_standard_comparison/Triples_CBM_Gold_Standard.xlsx --output data/gold_standard_comparison/Triples_CBM_Gold_Standard_SubjObj_Categorized --mode subjobj   
         python src/Triples_Categorization.py --input data/gold_standard_comparison/Triples_GPT_for_comparison.xlsx --output data/gold_standard_comparison/Triples_GPT_for_comparison_SubjObj_Categorized --mode subjobj
+        python src/Triples_Categorization.py --input data/gold_standard_comparison/Triples_Full_Text_GPT_for_comp.xlsx --output data/gold_standard_comparison/Triples_FullText_GPT_SubjObj_Categorized --mode subjobj
 """
 
 import pandas as pd
