@@ -84,6 +84,7 @@ Outputs:
 - Near-threshold and error typology: Analyzes GPT–CBM pairs near the similarity cutoff and automatically categorizes errors into boundary, predicate, and granularity mismatches (NearThreshold_and_ErrorTypology.py).
 
 Inputs: Gold-standard triples and GPT-extracted triples (Excel/CSV).
+
 Outputs: similarity histograms, global and per-category metrics, and detailed per-triple comparison logs.
 
 ### Step 5: Mechanism Categorization
