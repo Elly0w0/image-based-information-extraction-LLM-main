@@ -51,6 +51,7 @@ This project presents a computational framework to identify mechanistic connecti
 - Compares GPT triples generated from different prompt formulations to the CBM gold standard using BioBERT full-triple embedding.
 - Applies the Hungarian algorithm to align predicted and gold triples for each prompt version.
 - Outputs per-prompt precision, recall, and F1 scores, along with comparative plots.
+- Performs a paired bootstrap resampling over images (B = 10 000) to test whether differences between prompts are statistically significant (Bootstrap_Paired_Images_BioBERT.py).
 
 #### 2.3 Hyperparameters Assessment
 - Evaluates the effect of GPT decoding parameters (temperature and top_p) on triple extraction quality.
@@ -76,21 +77,16 @@ Outputs:
 - `Triples_Full_Text_GPT_for_comp.csv` — All extracted triples from article text
 - `Triples_Full_Text_GPT_for_comp.xlsx` — Excel version of the same data
 
-### Step 4: Triple Evaluation (Gold Standard Comparison)
-- Compares full semantic triples (subject–predicate–object) by encoding them as complete sentences using BioBERT embeddings.
-- All GPT-extracted triples are compared against CBM gold standard triples within each image.
-- Hungarian algorithm is applied to compute global one-to-one matching between predicted and gold triples.
-- A predicted triple is considered a match if its similarity to the assigned gold triple exceeds a predefined threshold.
+### Step 4: Triple Evaluation and Extended Error Analysis
 
-Inputs: Gold standard triples (Excel) and GPT-extracted triples (Excel).
+- Compares full semantic triples (subject–predicate–object) by encoding them as complete sentences using BioBERT embeddings and applying the Hungarian algorithm (Gold_Standard_Comparison_BioBERT.py).
+- Per-category evaluation: Computes precision, recall, and F1 per biological mechanism category (e.g., Immune Response, Vascular Effects) using Gold_Standard_Comparison_PerCategory.py.
+- Near-threshold and error typology: Analyzes GPT–CBM pairs near the similarity cutoff and automatically categorizes errors into boundary, predicate, and granularity mismatches (NearThreshold_and_ErrorTypology.py).
 
-Outputs:
-- Console logs showing matched pairs and their similarity scores
-- Global evaluation metrics
-- Similarity histogram plot
-- Full per-triple comparison log saved as Excel
+Inputs: Gold-standard triples and GPT-extracted triples (Excel/CSV).
+Outputs: similarity histograms, global and per-category metrics, and detailed per-triple comparison logs.
 
-### Step 4: Mechanism Categorization
+### Step 5: Mechanism Categorization
 - Uses Sentence-BERT embeddings and MeSH keyword expansion
 - Categories:
   - Viral Entry and Neuroinvasion
@@ -101,13 +97,23 @@ Outputs:
   - Systemic Cross-Organ Effects
 - Fallback: GPT-4o assigns categories for ambiguous cases
 
-### Step 5: Graph-Based Integration in Neo4j
-- Biomedical triples from both CBM and GPT sources are uploaded into a Neo4j graph database (for biomedical images and full-text papers)
-- Each entity (Subject/Object) is semantically classified via lexical patterns and ontology APIs (e.g., HGNC, MESH, GO, DOID)
-- Relationships retain associated metadata, including image source, mechanism, and annotation source
-- Nodes are labeled by entity type (e.g., Disease, Protein, Biological_Process) and normalized for ontology compatibility
-- Cypher-based MERGE statements ensure graph consistency without duplication
-- Output: Queryable biomedical knowledge graph accessible via Neo4j Desktop or Bolt endpoint
+### Step 6: Ontology Normalization, Entity Typing, and Graph-Based Integration in Neo4j
+
+Ontology-based entity linking:
+- fast_entity_linking_embedding_advanced.py links each subject/object to biomedical ontologies (e.g., HGNC, UniProt, GO, DOID, MeSH, NCIt, Wikidata), using multi-strategy lexical + embedding search and per-group thresholds.
+- Produces enriched triples with canonical ontology IDs, IRIs, and normalized labels.
+
+Entity type classification:
+- classify_entities.py assigns broad biomedical types (Gene/Protein, Disease/Condition, Chemical/Drug, Anatomy/Tissue/Cell Type, etc.) to each entity using heuristics plus GPT-4o, with caching for efficiency. The resulting subject_type / object_type columns are used as node labels in Neo4j.
+
+Neo4j ingestion with BEL-style relations:
+
+- final_neo4j_load.py uploads enriched, typed triples into Neo4j:
+- Nodes are merged by stable IDs (ontology_id → IRI → internal ID → canonical name) using a unique key property and constraint.
+- subject_* / object_* columns become node properties; all other metadata remain on relationships.
+- Predicate texts are mapped to a compact BEL-style relation set (INCREASE, DECREASE, REGULATES, ASSOCIATION, PART_OF, etc.) while preserving original predicates.
+
+Output: a normalized, ontology-grounded, queryable biomedical knowledge graph combining CBM, image-derived GPT, and full-text GPT triples.
 
 ---
 
@@ -133,6 +139,8 @@ SCAI-BIO/covid-NDD-image-based-information-extraction/
 │   ├── bio_insights/                    ← Biological insights from the neo4j data
 │        └── neo4j_results/              ← Files containing results of the neo4j queries
 │        └── outputs/                    ← Figures and .csv files summarizing bioligical analysis
+│   ├── baselines_and_ablations/         ← Non-LLM baseline and GPT-4o ablation experiments (image-only vs. image+caption)
+│   ├── bootstrap/                       ← Paired bootstrap resampling analysis for prompt comparisons
 │   ├── prompt_templates/                ← Files in .txt format containing prompts used in this work
 │   ├── URL_relevance_analysis/          ← URL relevance check results (GPT-4o and manual)
 │   └── triples_output/                  ← Extracted and categorized triples
@@ -147,11 +155,15 @@ SCAI-BIO/covid-NDD-image-based-information-extraction/
 │   ├── Prompt_Assessment.py
 │   ├── Hyperparameter_Assessment.py
 │   ├── Gold_Standard_Comparison_BioBERT.py
+│   ├── Gold_Standard_Comparison_PerCategory.py
+│   ├── Bootstrap_Paired_Images_BioBERT.py
+│   ├── NearThreshold_and_ErrorTypology.py
 │   ├── mesh_category_extraction.py
 │   ├── Triples_Categorization.py
 │   ├── GPT4o_uncategorized_handling.py
-│   ├── neo4j_upload.py
-│   ├── neo4j_upload_fulltext.py
+│   ├── classify_entities.py
+│   ├── fast_entity_linking_embedding_advanced.py
+│   ├── final_neo4j_load.py
 │   ├── review_labels_neo4j.py
 │   └── bio_insights.py
 ```
@@ -250,47 +262,77 @@ python src/Threshold_Selection_BioBERT.py \
 # Step 7 (Optional): Assess effect of different prompts on triple quality
 python src/Prompt_Assessment.py
 
-# Step 8 (Optional): Assess effect of GPT decoding hyperparameters
+# Step 8 (Optional): Paired bootstrap test for prompt differences
+python src/Bootstrap_Paired_Images_BioBERT.py \
+  --gold data/gold_standard_comparison/Triples_CBM_Gold_Standard.xlsx \
+  --eval data/gold_standard_comparison/Triples_GPT_freeform.xlsx --label FreeForm \
+  --eval data/gold_standard_comparison/Triples_GPT_template.xlsx --label Template \
+  --eval data/gold_standard_comparison/Triples_GPT_hybrid.xlsx --label Hybrid \
+  --threshold 0.85 --B 10000 --seed 42 --outdir results/bootstrap --save_raw
+
+# Step 9 (Optional): Assess effect of GPT decoding hyperparameters
 python src/Hyperparameter_Assessment.py
 
-# Step 9: Compare GPT triples to gold standard using BioBERT + Hungarian matching
+# Step 10: Compare GPT triples to gold standard using BioBERT + Hungarian matching
 python src/Gold_Standard_Comparison_BioBERT.py \
     --gold data/gold_standard_comparison/Triples_CBM_Gold_Standard.xlsx \
     --eval data/gold_standard_comparison/Triples_GPT_for_comparison.xlsx \
     --threshold 0.85
 
-# Step 10: Extract MeSH category terms from official descriptor file
+# Step 11 (Optional): Near-threshold analysis and error typology
+python src/NearThreshold_and_ErrorTypology.py \
+        --report data/gold_standard_comparison/CBM_comparison_Report_Threshold_85.xlsx \
+        --threshold 0.85 --delta 0.05 \
+        --outdir data/gold_standard_comparison
+
+# Step 12: Extract MeSH category terms from official descriptor file
 python src/mesh_category_extraction.py \
     --mesh_xml data/MeSh_data/desc2025.xml \
     --output data/MeSh_data/mesh_category_terms.json
 
-# Step 11: Categorize triples into mechanistic classes (BERT + MeSH keywords)
+# Step 13: Categorize triples into mechanistic classes (BERT + MeSH keywords)
 python src/Triples_Categorization.py \
     --input data/triples_output/Triples_Final_All_Relevant.csv \
     --output data/triples_output/Triples_Final_All_Relevant_Categorized \
     --mode pp
 
-# Step 12: Assign categories to uncategorized entries using GPT-4o
+# Step 14: Assign categories to uncategorized entries using GPT-4o
 python src/GPT4o_uncategorized_handling.py \
     --input data/triples_output/Triples_Final_All_Relevant_Categorized.xlsx \
     --output data/triples_output/Triples_Final_All_Relevant_Categorized_GPT4o \
     --api_key YOUR_API_KEY
 
-# Step 13: Upload image-derived triples to Neo4j
-python python src/neo4j_upload.py \
---cbm data/gold_standard_comparison/Triples_CBM_Gold_Standard_cleaned.csv \
---gpt data/gold_standard_comparison/Triples_GPT_for_comparison.csv \
---password YOUR_Neo4j_PASSWORD
+# Step 15 (Optional): Per-category comparison (by biological domain)
+python src/Gold_Standard_Comparison_PerCategory.py \
+    --gold data/gold_standard_comparison/Triples_CBM_Gold_Standard_SubjObj_Categorized.xlsx \
+    --eval data/gold_standard_comparison/Triples_GPT_for_comparison_SubjObj_Categorized.xlsx \
+    --threshold 0.85
 
-# Step 14: Upload full-text-derived triples to Neo4j
-python src/neo4j_upload_fulltext.py \
-    --input data/gold_standard_comparison/Triples_Full_Text_GPT_for_comp_cleaned.csv \
-    --password YOUR_Neo4j_PASSWORD
+# Step 16: Ontology-based entity linking for all triples
+python fast_entity_linking_embedding_advanced.py \
+        --input ../data/gold_standard_comparison/Triples_Full_Text_GPT_for_comp_with_URLs.csv \
+        --subject-col "Subject" \
+        --object-col "Object" \
+        --outdir ../data/gold_standard_comparison/output_Triples_Full_Text_GPT_for_comp_with_URLs \
+        --use-embeddings \
+        --embed-model text-embedding-3-large \
+        --threshold 0.55 \
+        --max-workers 16 \
+        --fast
 
-# Step 15 (Optional): Review and correct Neo4j node labels using GPT
+# Step 17: Broad entity typing for Neo4j node labels
+python src/classify_entities.py \
+    data/neo4j_data/triples_enriched/gpt-full.csv
+
+# Step 18: Upload image- and full-text-derived triples to Neo4j
+python final_neo4j_load.py \
+        --file ./classified_triples.xlsx \
+        --uri bolt://localhost:7687 --user neo4j --password YOUR_PASSWORD
+
+# Step 19 (Optional): Review and correct Neo4j node labels using GPT
 python src/review_labels_neo4j.py
 
-# Step 16: Get the biological insights from the neo4j data 
+# Step 20: Get the biological insights from the neo4j data 
 python python src/bio_insights.py \
         --input-dir data/bio_insights/neo4j_results \
         --output-dir data/bio_insights/outputs \
@@ -318,7 +360,7 @@ Place in: `/data/MeSh_data/desc2025.xml`
 
 ## Neo4j Integration
 
-The script `neo4j_upload.py` uploads all extracted and/or curated semantic triples into a local Neo4j graph database using the **Bolt** protocol.
+The script `final_neo4j_load.py` uploads all extracted and/or curated semantic triples into a local Neo4j graph database using the **Bolt** protocol.
 
 - Each node (Subject/Object) is labeled based on ontology categories (e.g., Gene, Disease, Biological_Process)
 - Relationships retain metadata (image URL, pathophysiological process, source)
